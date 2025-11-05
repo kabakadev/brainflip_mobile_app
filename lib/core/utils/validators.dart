@@ -67,4 +67,37 @@ class Validators {
     }
     return null;
   }
-}
+
+  // --- ADD THE NEW METHOD HERE ---
+
+  // Answer validation for flashcards
+  static bool validateFlashcardAnswer(
+    String userInput,
+    String correctAnswer,
+    List<String> alternateAnswers,
+  ) {
+    // Normalize user input
+    String normalized = userInput.toLowerCase().trim();
+
+    // Remove extra spaces
+    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Normalize correct answer
+    String normalizedCorrect = correctAnswer.toLowerCase().trim();
+
+    // Check if matches correct answer
+    if (normalized == normalizedCorrect) {
+      return true;
+    }
+
+    // Check against alternate answers
+    for (final alternate in alternateAnswers) {
+      String normalizedAlternate = alternate.toLowerCase().trim();
+      if (normalized == normalizedAlternate) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+} // <-- This is the final closing brace for the class
