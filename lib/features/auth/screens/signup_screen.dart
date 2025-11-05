@@ -7,6 +7,7 @@ import '../../../core/utils/validators.dart';
 import '../services/auth_service.dart';
 import '../widgets/google_sign_in_button.dart';
 import '../../home/screens/dashboard_screen.dart';
+import '../../onboarding/screens/deck_selection_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -58,11 +59,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ? _nameController.text.trim()
             : null,
       );
-
+      // In _handleEmailSignUp method:
       if (user != null && mounted) {
-        // Navigate to dashboard
+        // New user always goes to deck selection
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const DeckSelectionScreen()),
         );
       }
     } catch (e) {
@@ -78,6 +79,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  // THIS IS YOUR NEW, UPDATED METHOD
   Future<void> _handleGoogleSignUp() async {
     setState(() {
       _errorMessage = null;
@@ -88,9 +90,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final user = await _authService.signInWithGoogle();
 
       if (user != null && mounted) {
-        // Navigate to dashboard
+        // New user always goes to deck selection
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const DeckSelectionScreen()),
         );
       }
     } catch (e) {

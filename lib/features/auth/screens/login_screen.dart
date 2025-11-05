@@ -8,6 +8,9 @@ import '../services/auth_service.dart';
 import '../widgets/google_sign_in_button.dart';
 import 'signup_screen.dart';
 import '../../home/screens/dashboard_screen.dart';
+import '../../onboarding/screens/deck_selection_screen.dart';
+import 'package:flutter/foundation.dart';
+import '../../../core/utils/database_seeder.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -53,11 +56,26 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
+      // Find this section in _handleEmailSignIn method:
       if (user != null && mounted) {
-        // Navigate to dashboard
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-        );
+        // Check if user has selected decks
+        final selectedDecks = await _authService.getUserData(user.uid);
+
+        if (mounted) {
+          if (selectedDecks != null && selectedDecks.selectedDecks.isNotEmpty) {
+            // User has decks, go to dashboard
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            );
+          } else {
+            // New user, go to deck selection
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const DeckSelectionScreen(),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       setState(() {
@@ -72,6 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // THIS IS YOUR NEW, UPDATED METHOD
   Future<void> _handleGoogleSignIn() async {
     setState(() {
       _errorMessage = null;
@@ -81,11 +100,26 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final user = await _authService.signInWithGoogle();
 
+      // Find this section in _handleEmailSignIn method:
       if (user != null && mounted) {
-        // Navigate to dashboard
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-        );
+        // Check if user has selected decks
+        final selectedDecks = await _authService.getUserData(user.uid);
+
+        if (mounted) {
+          if (selectedDecks != null && selectedDecks.selectedDecks.isNotEmpty) {
+            // User has decks, go to dashboard
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            );
+          } else {
+            // New user, go to deck selection
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const DeckSelectionScreen(),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       setState(() {
@@ -242,6 +276,37 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+
+                // ... existing code ...
+                const SizedBox(height: 24),
+
+                // TEMPORARY: Seed Database Button (REMOVE AFTER SEEDING)
+                if (kDebugMode)
+                  TextButton(
+                    onPressed: () async {
+                      try {
+                        await DatabaseSeeder.seedStarterDecks();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✅ Database seeded successfully!'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('❌ Seeding failed: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('🌱 Seed Database (Dev Only)'),
+                  ),
               ],
             ),
           ),
