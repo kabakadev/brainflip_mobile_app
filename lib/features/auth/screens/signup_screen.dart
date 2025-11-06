@@ -352,24 +352,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _buildLogoPlaceholder() {
-    return Center(
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.gray300, width: 2),
-        ),
-        child: Center(
-          child: Text(
-            'LOGO',
-            style: AppTextStyles.headingMedium.copyWith(
-              color: AppColors.gray400,
-            ),
-          ),
-        ),
-      ),
+    return Image.asset(
+      'assets/images/app_logo.png', // Use the .png file
+      width: 100,
+      height: 100,
     );
   }
 }

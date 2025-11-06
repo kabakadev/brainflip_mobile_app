@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -369,24 +370,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLogoPlaceholder() {
-    return Center(
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.gray300, width: 2),
-        ),
-        child: Center(
-          child: Text(
-            'LOGO',
-            style: AppTextStyles.headingMedium.copyWith(
-              color: AppColors.gray400,
-            ),
-          ),
-        ),
-      ),
+    return Image.asset(
+      'assets/images/app_logo.png', // Use the .png file
+      width: 100,
+      height: 100,
     );
   }
 }
