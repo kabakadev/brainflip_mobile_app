@@ -10,6 +10,12 @@ import '../../study/screens/study_session_screen.dart';
 import '../widgets/deck_carousel.dart';
 import '../widgets/stats_card.dart';
 
+// ===== IMPORTS ADDED =====
+import '../../../services/progress_service.dart';
+import '../../../models/user_stats.dart';
+import '../../../models/deck_progress.dart';
+// =========================
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -21,6 +27,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
+  // ===== CLASS FIELDS ADDED =====
+  final ProgressService _progressService = ProgressService();
+  UserStats _userStats = UserStats();
+  Map<String, DeckProgress> _deckProgressMap = {};
+  // ==============================
+
   List<DeckModel> _userDecks = [];
   bool _isLoading = true;
   int _selectedBottomNavIndex = 0;
@@ -31,6 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadUserDecks();
   }
 
+  // ===== _loadUserDecks METHOD REPLACED =====
   Future<void> _loadUserDecks() async {
     setState(() {
       _isLoading = true;
@@ -54,8 +67,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
 
+      // Load user stats
+      final stats = await _progressService.getUserStats(userId);
+
+      // Load deck progress
+      final deckProgress = await _progressService.getAllDeckProgress(userId);
+
       setState(() {
         _userDecks = decks;
+        _userStats = stats;
+        _deckProgressMap = deckProgress;
         _isLoading = false;
       });
     } catch (e) {
@@ -64,6 +85,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     }
   }
+  // ============================================
 
   Future<void> _handleSignOut() async {
     final confirmed = await showDialog<bool>(
@@ -149,12 +171,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          // Deck carousel
+          // ===== DeckCarousel UPDATED =====
           if (_userDecks.isEmpty)
             _buildEmptyDecks()
           else
-            DeckCarousel(decks: _userDecks, onDeckTap: _startStudySession),
+            DeckCarousel(
+              decks: _userDecks,
+              deckProgressMap: _deckProgressMap,
+              onDeckTap: _startStudySession,
+            ),
 
+          // ================================
           const SizedBox(height: 32),
 
           // Study Stats Section
@@ -165,14 +192,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          // Stats cards
+          // ===== Stats cards UPDATED =====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               children: [
                 Expanded(
                   child: StatsCard(
-                    value: '24',
+                    value: '${_userStats.cardsStudiedToday}',
                     label: 'Cards Today',
                     icon: Icons.style_outlined,
                     color: AppColors.primary,
@@ -181,7 +208,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: StatsCard(
-                    value: '7 🔥',
+                    value: _userStats.currentStreak > 0
+                        ? '${_userStats.currentStreak} 🔥'
+                        : '0',
                     label: 'Day Streak',
                     icon: Icons.local_fire_department,
                     color: AppColors.streakOrange,
@@ -190,7 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: StatsCard(
-                    value: '82%',
+                    value: '${_userStats.overallAccuracy.toInt()}%',
                     label: 'Accuracy',
                     icon: Icons.show_chart,
                     color: AppColors.success,
@@ -200,6 +229,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
+          // ===============================
           const SizedBox(height: 32),
 
           // Shared Decks Section (placeholder)

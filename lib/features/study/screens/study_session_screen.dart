@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// ===== FIX: Added kDebugMode import =====
+import 'package:flutter/foundation.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -10,6 +12,8 @@ import '../models/flashcard_model.dart';
 import '../widgets/flashcard_widget.dart';
 import '../widgets/answer_input.dart';
 import 'session_complete_screen.dart';
+import '../../../services/progress_service.dart';
+import '../../auth/services/auth_service.dart';
 
 class StudySessionScreen extends StatefulWidget {
   final DeckModel deck;
@@ -24,6 +28,11 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _answerController = TextEditingController();
   final FocusNode _answerFocusNode = FocusNode();
+
+  // ===== FIX: Added new class fields here =====
+  final ProgressService _progressService = ProgressService();
+  final AuthService _authService = AuthService();
+  // =============================================
 
   List<FlashcardModel> _flashcards = [];
   int _currentCardIndex = 0;
@@ -142,8 +151,30 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     }
   }
 
-  void _completeSession() {
+  // ===== FIX: Replaced _completeSession with new async version =====
+  void _completeSession() async {
     final duration = DateTime.now().difference(_sessionStartTime);
+    final userId = _authService.currentUser?.uid;
+
+    // Save progress to Firestore
+    if (userId != null) {
+      try {
+        await _progressService.saveStudySession(
+          userId: userId,
+          deckId: widget.deck.id,
+          cardsStudied: _flashcards.length,
+          correctAnswers: _correctCount,
+          incorrectAnswers: _incorrectCount,
+          duration: duration,
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error saving progress: $e');
+        }
+      }
+    }
+
+    if (!mounted) return; // Check if the widget is still in the tree
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -157,6 +188,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       ),
     );
   }
+  // ================================================================
 
   void _exitSession() {
     showDialog(
@@ -188,7 +220,6 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     }
 
     if (_flashcards.isEmpty) {
-      // ... (your empty state code is fine, no changes here)
       return Scaffold(
         appBar: AppBar(title: const Text('Study Session')),
         body: Center(
@@ -249,9 +280,6 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
           ),
         ],
       ),
-      //
-      // ===== FIX: WRAP THE COLUMN IN SingleChildScrollView =====
-      //
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -269,13 +297,10 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
               ),
             ),
 
-            //
-            // ===== FIX: REMOVE THE Expanded WIDGET =====
-            //
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: FlashcardWidget(
-                key: ValueKey(currentCard.id), // <-- THIS IS THE FIX
+                key: ValueKey(currentCard.id),
                 flashcard: currentCard,
                 isFlipped: _isFlipped,
                 showAnswer: _showAnswer,

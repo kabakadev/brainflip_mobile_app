@@ -7,6 +7,12 @@ import '../models/deck_model.dart';
 import '../../home/screens/dashboard_screen.dart';
 import 'study_session_screen.dart';
 
+// ===== IMPORTS ADDED =====
+import '../../../services/progress_service.dart';
+import '../../auth/services/auth_service.dart';
+import '../../../models/user_stats.dart';
+// =========================
+
 class SessionCompleteScreen extends StatefulWidget {
   final DeckModel deck;
   final int cardsStudied;
@@ -33,6 +39,12 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
   late Animation<double> _scaleAnimation;
   late Animation<double> _progressAnimation;
 
+  // ===== CLASS FIELDS ADDED =====
+  final ProgressService _progressService = ProgressService();
+  final AuthService _authService = AuthService();
+  UserStats? _userStats;
+  // ==============================
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +69,22 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
     );
 
     _controller.forward();
+    // ===== METHOD CALL ADDED =====
+    _loadUserStats();
+    // =============================
   }
+
+  // ===== NEW METHOD ADDED =====
+  Future<void> _loadUserStats() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId != null) {
+      final stats = await _progressService.getUserStats(userId);
+      setState(() {
+        _userStats = stats;
+      });
+    }
+  }
+  // ============================
 
   @override
   void dispose() {
@@ -95,7 +122,6 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        // 1. ADD THIS WIDGET
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -154,10 +180,6 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
                 // Badges earned (placeholder)
                 _buildBadgesSection(),
 
-                // 2. REMOVE THE SPACER
-                // const Spacer(),
-
-                // 3. ADD A SIZEDBOX FOR SPACING
                 const SizedBox(height: 32),
 
                 // Action buttons
@@ -342,7 +364,10 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
     );
   }
 
+  // ===== _buildStreakIndicator METHOD REPLACED =====
   Widget _buildStreakIndicator() {
+    final streak = _userStats?.currentStreak ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -375,10 +400,15 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('8 Day Streak!', style: AppTextStyles.headingSmall),
+                Text(
+                  streak > 0 ? '$streak Day Streak!' : 'Start Your Streak!',
+                  style: AppTextStyles.headingSmall,
+                ),
                 const SizedBox(height: 4),
                 Text(
-                  'Keep it going',
+                  streak > 0
+                      ? 'Keep it going'
+                      : 'Study tomorrow to build a streak',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -391,6 +421,7 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
       ),
     );
   }
+  // ===============================================
 
   Widget _buildBadgesSection() {
     return Column(
@@ -450,8 +481,6 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
           icon: Icons.replay,
         ),
         const SizedBox(height: 12),
-
-        // =====  This is the correct, non-lazy implementation =====
         CustomButton(
           text: 'Back to Home',
           onPressed: () {
@@ -460,9 +489,8 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
               (route) => false,
             );
           },
-          type: ButtonType.text, // This will now work correctly
+          type: ButtonType.text, // This uses our fixed CustomButton
         ),
-        // =========================================================
       ],
     );
   }
