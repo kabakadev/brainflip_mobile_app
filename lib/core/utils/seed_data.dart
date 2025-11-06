@@ -17,7 +17,7 @@ class SeedData {
         description: 'Learn the major bones of the human body',
         category: 'biology',
         thumbnailUrl: '${placeholderImage}Skeleton',
-        cardCount: 20,
+        cardCount: 5, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -29,7 +29,7 @@ class SeedData {
         description: 'Master chemical elements and their symbols',
         category: 'chemistry',
         thumbnailUrl: '${placeholderImage}Periodic',
-        cardCount: 30,
+        cardCount: 5, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -41,7 +41,7 @@ class SeedData {
         description: 'Identify common electrical circuit symbols',
         category: 'physics',
         thumbnailUrl: '${placeholderImage}Circuit',
-        cardCount: 25,
+        cardCount: 5, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -53,7 +53,7 @@ class SeedData {
         description: 'Recognize computer components and parts',
         category: 'computers',
         thumbnailUrl: '${placeholderImage}Hardware',
-        cardCount: 22,
+        cardCount: 5, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -65,7 +65,7 @@ class SeedData {
         description: 'Explore the parts of plant and animal cells',
         category: 'biology',
         thumbnailUrl: '${placeholderImage}Cell',
-        cardCount: 15,
+        cardCount: 3, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -77,7 +77,7 @@ class SeedData {
         description: 'Memorize essential physics equations',
         category: 'physics',
         thumbnailUrl: '${placeholderImage}Physics',
-        cardCount: 28,
+        cardCount: 3, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -89,7 +89,7 @@ class SeedData {
         description: 'Learn common networking protocols and ports',
         category: 'computers',
         thumbnailUrl: '${placeholderImage}Network',
-        cardCount: 18,
+        cardCount: 3, // Updated card count
         createdAt: DateTime.now(),
         isPublic: true,
       ),
@@ -322,13 +322,128 @@ class SeedData {
     ];
   }
 
+  //
+  // ===== NEWLY ADDED FLASHCARD LISTS =====
+  //
+  static List<FlashcardModel> getCellOrganellesFlashcards() {
+    return [
+      FlashcardModel(
+        id: '',
+        deckId: 'cell_organelles',
+        imageUrl: '${placeholderImage}Nucleus',
+        correctAnswer: 'nucleus',
+        hint: 'Contains the cell\'s genetic material',
+        difficulty: 'easy',
+        order: 1,
+      ),
+      FlashcardModel(
+        id: '',
+        deckId: 'cell_organelles',
+        imageUrl: '${placeholderImage}Mitochondria',
+        correctAnswer: 'mitochondria',
+        alternateAnswers: ['powerhouse of the cell'],
+        hint: 'Generates most of the cell\'s ATP',
+        difficulty: 'easy',
+        order: 2,
+      ),
+      FlashcardModel(
+        id: '',
+        deckId: 'cell_organelles',
+        imageUrl: '${placeholderImage}Ribosome',
+        correctAnswer: 'ribosome',
+        hint: 'Synthesizes proteins',
+        difficulty: 'medium',
+        order: 3,
+      ),
+    ];
+  }
+
+  static List<FlashcardModel> getPhysicsFormulasFlashcards() {
+    return [
+      FlashcardModel(
+        id: '',
+        deckId: 'physics_formulas',
+        imageUrl: '${placeholderImage}F=ma',
+        correctAnswer: 'f=ma',
+        alternateAnswers: [
+          'force = mass * acceleration',
+          'newton\'s second law',
+        ],
+        hint: 'Newton\'s Second Law',
+        difficulty: 'easy',
+        order: 1,
+      ),
+      FlashcardModel(
+        id: '',
+        deckId: 'physics_formulas',
+        imageUrl: '${placeholderImage}E=mc^2',
+        correctAnswer: 'e=mc^2',
+        alternateAnswers: ['energy = mass * speed of light squared'],
+        hint: 'Mass–energy equivalence',
+        difficulty: 'medium',
+        order: 2,
+      ),
+      FlashcardModel(
+        id: '',
+        deckId: 'physics_formulas',
+        imageUrl: '${placeholderImage}V=IR',
+        correctAnswer: 'v=ir',
+        alternateAnswers: ['voltage = current * resistance', 'ohm\'s law'],
+        hint: 'Ohm\'s Law',
+        difficulty: 'easy',
+        order: 3,
+      ),
+    ];
+  }
+
+  static List<FlashcardModel> getNetworkProtocolsFlashcards() {
+    return [
+      FlashcardModel(
+        id: '',
+        deckId: 'network_protocols',
+        imageUrl: '${placeholderImage}HTTP',
+        correctAnswer: 'http',
+        alternateAnswers: ['hypertext transfer protocol'],
+        hint: 'The foundation of data communication for the World Wide Web',
+        difficulty: 'easy',
+        order: 1,
+      ),
+      FlashcardModel(
+        id: '',
+        deckId: 'network_protocols',
+        imageUrl: '${placeholderImage}TCP',
+        correctAnswer: 'tcp',
+        alternateAnswers: ['transmission control protocol'],
+        hint: 'Provides reliable, ordered, and error-checked delivery',
+        difficulty: 'medium',
+        order: 2,
+      ),
+      FlashcardModel(
+        id: '',
+        deckId: 'network_protocols',
+        imageUrl: '${placeholderImage}IP',
+        correctAnswer: 'ip',
+        alternateAnswers: ['internet protocol'],
+        hint: 'Principal communications protocol for relaying datagrams',
+        difficulty: 'easy',
+        order: 3,
+      ),
+    ];
+  }
+
   // Get all sample flashcards
+  //
+  // ===== UPDATED MAP TO INCLUDE ALL 7 DECKS =====
+  //
   static Map<String, List<FlashcardModel>> getAllFlashcards() {
     return {
       'skeleton_bones': getSkeletonFlashcards(),
       'periodic_table': getPeriodicTableFlashcards(),
       'circuit_symbols': getCircuitSymbolsFlashcards(),
       'computer_hardware': getComputerHardwareFlashcards(),
+      'cell_organelles': getCellOrganellesFlashcards(),
+      'physics_formulas': getPhysicsFormulasFlashcards(),
+      'network_protocols': getNetworkProtocolsFlashcards(),
     };
   }
 }

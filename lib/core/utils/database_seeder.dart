@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../services/firestore_service.dart';
-import 'seed_data.dart';
+import '../../features/study/models/flashcard_model.dart';
+import 'seed_data.dart'; // Make sure this import is correct
 
 class DatabaseSeeder {
   static final FirestoreService _firestoreService = FirestoreService();
@@ -12,29 +13,60 @@ class DatabaseSeeder {
         print('🌱 Starting database seeding...');
       }
 
-      // Get starter decks
-      final decks = SeedData.getStarterDecks();
+      // Get starter decks and flashcards from seed data
+      final decks = SeedData.getStarterDecks(); // List<DeckModel>
+      final flashcardsMap =
+          SeedData.getAllFlashcards(); // Map<String, List<FlashcardModel>>
 
-      // Create decks in Firestore
+      int totalDecks = 0;
+      int totalFlashcards = 0;
+
+      // Loop through each deck
       for (final deck in decks) {
-        await _firestoreService.createDeck(deck);
-      }
+        // 1. CREATE THE DECK AND GET ITS NEW FIRESTORE ID
+        final newDeckId = await _firestoreService.createDeck(deck);
 
-      // Get all flashcards
-      final flashcardsMap = SeedData.getAllFlashcards();
+        if (kDebugMode) {
+          print('✅ Deck created: ${deck.name} (ID: $newDeckId)');
+        }
+        totalDecks++;
 
-      // Create flashcards for each deck
-      for (final entry in flashcardsMap.entries) {
-        final flashcards = entry.value;
-        await _firestoreService.createFlashcardsInBatch(flashcards);
+        // 2. FIND THE FLASHCARDS FOR THIS DECK
+        //
+        // ===== THIS IS THE FIX =====
+        // We now look up flashcards by the hardcoded deck.id
+        //
+        final flashcards = flashcardsMap[deck.id];
+
+        if (flashcards != null && flashcards.isNotEmpty) {
+          // 3. UPDATE ALL FLASHCARDS WITH THE NEW, CORRECT DECK ID
+          final List<FlashcardModel> updatedFlashcards = [];
+          for (var card in flashcards) {
+            // Use copyWith to create a new card with the correct deckId
+            updatedFlashcards.add(card.copyWith(deckId: newDeckId));
+          }
+
+          // 4. CREATE THE BATCH OF FLASHCARDS
+          await _firestoreService.createFlashcardsInBatch(updatedFlashcards);
+          if (kDebugMode) {
+            print(
+              '   ✅ ${updatedFlashcards.length} flashcards created for ${deck.name}',
+            );
+          }
+          totalFlashcards += updatedFlashcards.length;
+        } else {
+          if (kDebugMode) {
+            print(
+              '   ⚠️ No flashcards found for deck: ${deck.name} (Key: ${deck.id})',
+            );
+          }
+        }
       }
 
       if (kDebugMode) {
         print('✅ Database seeding completed!');
-        print('   - ${decks.length} decks created');
-        print(
-          '   - ${flashcardsMap.values.fold(0, (sum, list) => sum + list.length)} flashcards created',
-        );
+        print('   - $totalDecks decks created');
+        print('   - $totalFlashcards flashcards created');
       }
     } catch (e) {
       if (kDebugMode) {

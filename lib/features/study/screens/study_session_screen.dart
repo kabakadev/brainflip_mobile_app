@@ -188,6 +188,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     }
 
     if (_flashcards.isEmpty) {
+      // ... (your empty state code is fine, no changes here)
       return Scaffold(
         appBar: AppBar(title: const Text('Study Session')),
         body: Center(
@@ -228,7 +229,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
         ),
         title: Text(widget.deck.name),
         actions: [
-          // Timer placeholder (we'll add functionality later)
+          // Timer placeholder
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
@@ -237,7 +238,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
                   const Icon(Icons.timer_outlined, size: 20),
                   const SizedBox(width: 4),
                   Text(
-                    '43s',
+                    '43s', // This is still a placeholder
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -248,27 +249,33 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Progress bar
-          _buildProgressBar(),
+      //
+      // ===== FIX: WRAP THE COLUMN IN SingleChildScrollView =====
+      //
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Progress bar
+            _buildProgressBar(),
 
-          // Progress text
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '${_currentCardIndex + 1} / ${_flashcards.length} cards',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+            // Progress text
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '${_currentCardIndex + 1} / ${_flashcards.length} cards',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
-          ),
 
-          // Flashcard
-          Expanded(
-            child: Padding(
+            //
+            // ===== FIX: REMOVE THE Expanded WIDGET =====
+            //
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: FlashcardWidget(
+                key: ValueKey(currentCard.id), // <-- THIS IS THE FIX
                 flashcard: currentCard,
                 isFlipped: _isFlipped,
                 showAnswer: _showAnswer,
@@ -276,29 +283,28 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
                 isCorrect: _isCorrect,
               ),
             ),
-          ),
+            const SizedBox(height: 24),
 
-          const SizedBox(height: 24),
+            // Answer input
+            if (!_showAnswer)
+              AnswerInput(
+                controller: _answerController,
+                focusNode: _answerFocusNode,
+                onSubmit: _flipCard,
+                enabled: !_showAnswer,
+              ),
 
-          // Answer input
-          if (!_showAnswer)
-            AnswerInput(
-              controller: _answerController,
-              focusNode: _answerFocusNode,
-              onSubmit: _flipCard,
-              enabled: !_showAnswer,
+            const SizedBox(height: 24),
+
+            // Action buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _showAnswer ? _buildNextButton() : _buildFlipButton(),
             ),
 
-          const SizedBox(height: 24),
-
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: _showAnswer ? _buildNextButton() : _buildFlipButton(),
-          ),
-
-          const SizedBox(height: 32),
-        ],
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }

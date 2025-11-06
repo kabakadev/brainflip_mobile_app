@@ -48,6 +48,7 @@ class FirestoreService {
   // Get decks by category
   Future<List<DeckModel>> getDecksByCategory(String category) async {
     try {
+      // NOTE: This query will require a new composite index in Firestore!
       final snapshot = await _firestore
           .collection('decks')
           .where('category', isEqualTo: category)
@@ -66,7 +67,10 @@ class FirestoreService {
   }
 
   // Create deck (for admin/seeding)
-  Future<String?> createDeck(DeckModel deck) async {
+  //
+  // ===== FIX 1: Changed to return Future<String> and rethrow error =====
+  //
+  Future<String> createDeck(DeckModel deck) async {
     try {
       final docRef = await _firestore.collection('decks').add(deck.toMap());
 
@@ -79,7 +83,8 @@ class FirestoreService {
       if (kDebugMode) {
         print('❌ Error creating deck: $e');
       }
-      return null;
+      // Rethrow the error so the seeder script can catch it
+      rethrow;
     }
   }
 
@@ -146,11 +151,16 @@ class FirestoreService {
   // ==================== USER DECK OPERATIONS ====================
 
   // Update user's selected decks
+  //
+  // ===== FIX 2: Changed .update() to .set(..., merge: true) =====
+  //
   Future<void> updateUserDecks(String userId, List<String> deckIds) async {
     try {
-      await _firestore.collection('users').doc(userId).update({
+      // Use .set with merge:true to create the doc if it doesn't exist
+      // or update it if it does. This is safer than .update().
+      await _firestore.collection('users').doc(userId).set({
         'selectedDecks': deckIds,
-      });
+      }, SetOptions(merge: true));
 
       if (kDebugMode) {
         print('✅ User decks updated: ${deckIds.length} decks');

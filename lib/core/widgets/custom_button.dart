@@ -61,8 +61,11 @@ class CustomButton extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        // ===== FIX 1: Add textStyle property =====
+        textStyle: AppTextStyles.button,
       ),
-      child: _buildButtonContent(),
+      // ===== FIX 2: Pass the correct spinner/content color =====
+      child: _buildButtonContent(AppColors.white),
     );
   }
 
@@ -77,8 +80,11 @@ class CustomButton extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        // ===== FIX 1: Add textStyle property =====
+        textStyle: AppTextStyles.button,
       ),
-      child: _buildButtonContent(),
+      // ===== FIX 2: Pass the correct spinner/content color =====
+      child: _buildButtonContent(AppColors.white),
     );
   }
 
@@ -94,8 +100,11 @@ class CustomButton extends StatelessWidget {
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        // ===== FIX 1: Add textStyle property =====
+        textStyle: AppTextStyles.button,
       ),
-      child: _buildButtonContent(),
+      // ===== FIX 2: Pass the correct spinner/content color =====
+      child: _buildButtonContent(AppColors.primary),
     );
   }
 
@@ -106,19 +115,24 @@ class CustomButton extends StatelessWidget {
         foregroundColor: AppColors.primary,
         disabledForegroundColor: AppColors.gray500,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        // ===== FIX 1: Add textStyle property =====
+        textStyle: AppTextStyles.button,
       ),
-      child: _buildButtonContent(),
+      // ===== FIX 2: Pass the correct spinner/content color =====
+      child: _buildButtonContent(AppColors.primary),
     );
   }
 
-  Widget _buildButtonContent() {
+  // ===== FIX 2: Update signature to accept a color =====
+  Widget _buildButtonContent(Color contentColor) {
     if (isLoading) {
-      return const SizedBox(
+      return SizedBox(
         height: 20,
         width: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+          // ===== FIX 2: Use the dynamic contentColor =====
+          valueColor: AlwaysStoppedAnimation<Color>(contentColor),
         ),
       );
     }
@@ -128,13 +142,15 @@ class CustomButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20),
+          Icon(icon, size: 20), // Icon inherits color from styleFrom
           const SizedBox(width: 8),
-          Text(text, style: AppTextStyles.button),
+          // ===== FIX 1: Remove hardcoded text style =====
+          Text(text), // Text inherits color and style from styleFrom
         ],
       );
     }
 
-    return Text(text, style: AppTextStyles.button);
+    // ===== FIX 1: Remove hardcoded text style =====
+    return Text(text); // Text inherits color and style from styleFrom
   }
 }

@@ -120,39 +120,42 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
           const SizedBox(height: 24),
 
           // Image
-          Expanded(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.gray100,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.gray300),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.image_outlined,
-                        size: 64,
+          //
+          // ===== FIX: REMOVED THE Expanded WIDGET =====
+          //
+          // Expanded( // <-- This was the problem
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.gray100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.gray300),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.image_outlined,
+                      size: 64,
+                      color: AppColors.gray400,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Image Placeholder',
+                      style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.gray400,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Image Placeholder',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.gray400,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
 
+          // ), // <-- This was the closing parenthesis for Expanded
           const SizedBox(height: 24),
 
           // Hint (if available)
@@ -189,6 +192,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
   }
 
   Widget _buildBackCard() {
+    // No changes needed here, this side was fine.
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
