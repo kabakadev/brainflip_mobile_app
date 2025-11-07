@@ -1,0 +1,37 @@
+{
+    "indexes": [
+      {
+        "collectionGroup": "user_flashcards",
+        "queryScope": "COLLECTION",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "order": "ASCENDING"
+          },
+          {
+            "fieldPath": "deckId",
+            "order": "ASCENDING"
+          },
+          {
+            "fieldPath": "nextReview",
+            "order": "ASCENDING"
+          }
+        ]
+      },
+      {
+        "collectionGroup": "study_progress",
+        "queryScope": "COLLECTION",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "order": "ASCENDING"
+          },
+          {
+            "fieldPath": "sessionDate",
+            "order": "DESCENDING"
+          }
+        ]
+      }
+    ],
+    "fieldOverrides": []
+  }

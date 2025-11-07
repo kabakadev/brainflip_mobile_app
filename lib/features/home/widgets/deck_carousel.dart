@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../study/models/deck_model.dart';
-// ===== IMPORT ADDED =====
 import '../../../models/deck_progress.dart';
 
 class DeckCarousel extends StatelessWidget {
   final List<DeckModel> decks;
-  // ===== PARAMETER ADDED =====
   final Map<String, DeckProgress> deckProgressMap;
+  // ===== PARAMETER ADDED =====
+  final Map<String, int> dueCardsCount;
   final Function(DeckModel) onDeckTap;
 
   // ===== CONSTRUCTOR UPDATED =====
@@ -16,6 +16,7 @@ class DeckCarousel extends StatelessWidget {
     super.key,
     required this.decks,
     this.deckProgressMap = const {},
+    this.dueCardsCount = const {},
     required this.onDeckTap,
   });
 
@@ -99,19 +100,45 @@ class DeckCarousel extends StatelessWidget {
             ),
 
             // Deck info
+            // ===== DECK INFO SECTION UPDATED =====
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    deck.name,
-                    style: AppTextStyles.headingSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          deck.name,
+                          style: AppTextStyles.headingSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Due cards badge
+                      if ((dueCardsCount[deck.id] ?? 0) > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${dueCardsCount[deck.id]}',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 4),
-                  // ===== PROGRESS BAR SECTION UPDATED =====
                   Row(
                     children: [
                       Text(
@@ -140,10 +167,10 @@ class DeckCarousel extends StatelessWidget {
                       ),
                     ],
                   ),
-                  // ======================================
                 ],
               ),
             ),
+            // ======================================
           ],
         ),
       ),
@@ -180,7 +207,6 @@ class DeckCarousel extends StatelessWidget {
     }
   }
 
-  // ===== HELPER METHOD ADDED =====
   double _getProgressFactor(String deckId) {
     final progress = deckProgressMap[deckId];
     if (progress == null) return 0.0;
@@ -196,6 +222,4 @@ class DeckCarousel extends StatelessWidget {
     return (progress.cardsCompleted / progress.totalCards).clamp(0.0, 1.0);
     */
   }
-
-  // ===============================
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// ===== FIX: Added kDebugMode import =====
 import 'package:flutter/foundation.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -15,6 +14,10 @@ import 'session_complete_screen.dart';
 import '../../../services/progress_service.dart';
 import '../../auth/services/auth_service.dart';
 
+import '../../../services/user_flashcard_service.dart';
+import '../services/spaced_repetition_service.dart';
+import '../../../models/user_flashcard.dart';
+
 class StudySessionScreen extends StatefulWidget {
   final DeckModel deck;
 
@@ -29,10 +32,15 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
   final TextEditingController _answerController = TextEditingController();
   final FocusNode _answerFocusNode = FocusNode();
 
-  // ===== FIX: Added new class fields here =====
   final ProgressService _progressService = ProgressService();
   final AuthService _authService = AuthService();
-  // =============================================
+
+  final UserFlashcardService _userFlashcardService = UserFlashcardService();
+  final SpacedRepetitionService _spacedRepetitionService =
+      SpacedRepetitionService();
+
+  Map<String, UserFlashcard> _userFlashcardMap = {};
+  List<int> _cardStartTimes = []; // Track time per card
 
   List<FlashcardModel> _flashcards = [];
   int _currentCardIndex = 0;
@@ -66,14 +74,56 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     });
 
     try {
-      final flashcards = await _firestoreService.getFlashcardsByDeck(
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('User not authenticated');
+
+      // Get all flashcards for the deck
+      final allFlashcards = await _firestoreService.getFlashcardsByDeck(
         widget.deck.id,
       );
 
+      // Get study queue (due cards + new cards)
+      final studyQueue = await _userFlashcardService.getStudyQueue(
+        userId: userId,
+        deckId: widget.deck.id,
+        allFlashcards: allFlashcards,
+        maxNewCards: 10,
+      );
+
+      // Load user flashcard data for due cards
+      final Map<String, UserFlashcard> userCardMap = {};
+      for (final userCard in studyQueue.dueUserCards) {
+        userCardMap[userCard.flashcardId] = userCard;
+      }
+
+      // Sort by spaced repetition priority
+      final sortedQueue = _spacedRepetitionService.sortCardsByPriority(
+        studyQueue.dueUserCards,
+      );
+
+      // Map back to flashcard models in priority order
+      final List<FlashcardModel> sortedFlashcards = [];
+      for (final userCard in sortedQueue) {
+        final flashcard = studyQueue.allCards.firstWhere(
+          (f) => f.id == userCard.flashcardId,
+        );
+        sortedFlashcards.add(flashcard);
+      }
+
+      // Add new cards at the end
+      sortedFlashcards.addAll(studyQueue.newCards);
+
       setState(() {
-        _flashcards = flashcards;
+        _flashcards = sortedFlashcards;
+        _userFlashcardMap = userCardMap;
+        _cardStartTimes = List.filled(sortedFlashcards.length, 0);
         _isLoading = false;
       });
+
+      // Start timer for first card
+      if (sortedFlashcards.isNotEmpty) {
+        _cardStartTimes[0] = DateTime.now().millisecondsSinceEpoch;
+      }
 
       // Auto-focus answer input
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -81,6 +131,13 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
           _answerFocusNode.requestFocus();
         }
       });
+
+      if (kDebugMode) {
+        print('📚 Study Queue:');
+        print('   Due cards: ${studyQueue.dueUserCards.length}');
+        print('   New cards: ${studyQueue.newCards.length}');
+        print('   Total: ${sortedFlashcards.length}');
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -88,8 +145,8 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to load flashcards'),
+          SnackBar(
+            content: Text('Failed to load flashcards: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -129,7 +186,57 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     });
   }
 
-  void _nextCard() {
+  void _nextCard() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) return;
+
+    final currentCard = _flashcards[_currentCardIndex];
+
+    try {
+      // Calculate time spent on this card
+      final timeSpent = (_cardStartTimes[_currentCardIndex] > 0)
+          ? (DateTime.now().millisecondsSinceEpoch -
+                    _cardStartTimes[_currentCardIndex]) ~/
+                1000
+          : 0;
+
+      // Get or create user flashcard
+      UserFlashcard userCard =
+          _userFlashcardMap[currentCard.id] ??
+          await _userFlashcardService.getUserFlashcard(
+            userId: userId,
+            flashcardId: currentCard.id,
+            deckId: widget.deck.id,
+          );
+
+      // Convert answer to quality rating
+      final quality = _spacedRepetitionService.convertAnswerToQuality(
+        isCorrect: _isCorrect ?? false,
+        timeSpentSeconds: timeSpent,
+      );
+
+      // Calculate next review
+      userCard = _spacedRepetitionService.calculateNextReview(
+        userCard: userCard,
+        quality: quality,
+      );
+
+      // Save to Firestore
+      await _userFlashcardService.updateUserFlashcard(userCard);
+
+      if (kDebugMode) {
+        print('💾 Card review saved:');
+        print('   Card: ${currentCard.correctAnswer}');
+        print('   Quality: $quality');
+        print('   Next review in: ${userCard.interval} days');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error saving card review: $e');
+      }
+    }
+
+    // Move to next card
     if (_currentCardIndex < _flashcards.length - 1) {
       setState(() {
         _currentCardIndex++;
@@ -139,6 +246,10 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
         _isCorrect = null;
         _answerController.clear();
       });
+
+      // Start timer for next card
+      _cardStartTimes[_currentCardIndex] =
+          DateTime.now().millisecondsSinceEpoch;
 
       // Re-focus input
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -151,7 +262,6 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     }
   }
 
-  // ===== FIX: Replaced _completeSession with new async version =====
   void _completeSession() async {
     final duration = DateTime.now().difference(_sessionStartTime);
     final userId = _authService.currentUser?.uid;
@@ -188,7 +298,6 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       ),
     );
   }
-  // ================================================================
 
   void _exitSession() {
     showDialog(
@@ -286,6 +395,20 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
             // Progress bar
             _buildProgressBar(),
 
+            // ===== DEBUG PANEL ADDED =====
+            if (kDebugMode && _currentCardIndex < _flashcards.length) ...[
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _buildDebugInfo(),
+              ),
+            ],
+            // =============================
+
             // Progress text
             Padding(
               padding: const EdgeInsets.all(16),
@@ -372,4 +495,58 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
           : Icons.check_circle,
     );
   }
+
+  // ===== NEW DEBUG WIDGET ADDED =====
+  Widget _buildDebugInfo() {
+    final currentCard = _flashcards[_currentCardIndex];
+    final userCard = _userFlashcardMap[currentCard.id];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '🐛 DEBUG INFO',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Card: ${_currentCardIndex + 1}/${_flashcards.length}',
+          style: TextStyle(color: Colors.white70, fontSize: 11),
+        ),
+        if (userCard != null) ...[
+          Text(
+            'Ease Factor: ${userCard.easeFactor.toStringAsFixed(2)}',
+            style: TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+          Text(
+            'Interval: ${userCard.interval} days',
+            style: TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+          Text(
+            'Repetitions: ${userCard.repetitions}',
+            style: TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+          Text(
+            'Accuracy: ${userCard.accuracy.toStringAsFixed(1)}%',
+            style: TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+          if (userCard.nextReview != null)
+            Text(
+              'Next: ${userCard.nextReview!.toLocal().toString().substring(0, 16)}',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+        ] else
+          Text(
+            'Status: New Card',
+            style: TextStyle(color: Colors.greenAccent, fontSize: 11),
+          ),
+      ],
+    );
+  }
+
+  // ==================================
 }

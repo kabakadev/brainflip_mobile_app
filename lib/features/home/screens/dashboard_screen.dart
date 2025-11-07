@@ -10,11 +10,14 @@ import '../../study/screens/study_session_screen.dart';
 import '../widgets/deck_carousel.dart';
 import '../widgets/stats_card.dart';
 
-// ===== IMPORTS ADDED =====
 import '../../../services/progress_service.dart';
 import '../../../models/user_stats.dart';
 import '../../../models/deck_progress.dart';
-// =========================
+import '../../../services/user_flashcard_service.dart';
+
+// ===== IMPORT ADDED =====
+import '../../profile/screens/profile_screen.dart';
+// ========================
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,11 +30,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // ===== CLASS FIELDS ADDED =====
   final ProgressService _progressService = ProgressService();
   UserStats _userStats = UserStats();
   Map<String, DeckProgress> _deckProgressMap = {};
-  // ==============================
+
+  final UserFlashcardService _userFlashcardService = UserFlashcardService();
+  Map<String, int> _dueCardsCount = {};
 
   List<DeckModel> _userDecks = [];
   bool _isLoading = true;
@@ -43,7 +47,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadUserDecks();
   }
 
-  // ===== _loadUserDecks METHOD REPLACED =====
   Future<void> _loadUserDecks() async {
     setState(() {
       _isLoading = true;
@@ -60,10 +63,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // Fetch deck details
       final List<DeckModel> decks = [];
+      final Map<String, int> dueCards = {};
+
       for (final deckId in selectedDeckIds) {
         final deck = await _firestoreService.getDeckById(deckId);
         if (deck != null) {
           decks.add(deck);
+
+          // Get due cards count
+          final due = await _userFlashcardService.getDueCards(
+            userId: userId,
+            deckId: deckId,
+          );
+          dueCards[deckId] = due.length;
         }
       }
 
@@ -77,6 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _userDecks = decks;
         _userStats = stats;
         _deckProgressMap = deckProgress;
+        _dueCardsCount = dueCards;
         _isLoading = false;
       });
     } catch (e) {
@@ -85,7 +98,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     }
   }
-  // ============================================
 
   Future<void> _handleSignOut() async {
     final confirmed = await showDialog<bool>(
@@ -123,6 +135,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => StudySessionScreen(deck: deck)),
     );
+  }
+
+  int _getTotalDueCards() {
+    return _dueCardsCount.values.fold(0, (sum, count) => sum + count);
+  }
+
+  void _startQuickReview() {
+    // Find deck with most due cards
+    String? deckId;
+    int maxDue = 0;
+
+    _dueCardsCount.forEach((id, count) {
+      if (count > maxDue) {
+        maxDue = count;
+        deckId = id;
+      }
+    });
+
+    if (deckId != null) {
+      final deck = _userDecks.firstWhere((d) => d.id == deckId);
+      _startStudySession(deck);
+    }
   }
 
   @override
@@ -171,17 +205,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          // ===== DeckCarousel UPDATED =====
+          // Deck carousel
           if (_userDecks.isEmpty)
             _buildEmptyDecks()
           else
             DeckCarousel(
               decks: _userDecks,
               deckProgressMap: _deckProgressMap,
+              dueCardsCount: _dueCardsCount,
               onDeckTap: _startStudySession,
             ),
 
-          // ================================
           const SizedBox(height: 32),
 
           // Study Stats Section
@@ -192,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          // ===== Stats cards UPDATED =====
+          // Stats cards
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
@@ -229,7 +263,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // ===============================
           const SizedBox(height: 32),
 
           // Shared Decks Section (placeholder)
@@ -255,34 +288,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 32),
 
-          // Quick study button
+          // Quick study buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _userDecks.isNotEmpty
-                    ? () => _startStudySession(_userDecks.first)
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            child: Column(
+              children: [
+                // Review due cards button
+                if (_getTotalDueCards() > 0)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () => _startQuickReview(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.notifications_active, size: 28),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Review ${_getTotalDueCards()} Due Cards',
+                            style: AppTextStyles.button.copyWith(fontSize: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 12),
+
+                // Start study button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _userDecks.isNotEmpty
+                        ? () => _startStudySession(_userDecks.first)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.play_arrow, size: 28),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getTotalDueCards() > 0
+                              ? 'Start New Session'
+                              : 'Start Quick Study',
+                          style: AppTextStyles.button.copyWith(fontSize: 18),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.play_arrow, size: 28),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Start Quick Study',
-                      style: AppTextStyles.button.copyWith(fontSize: 18),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
           ),
 
@@ -434,15 +503,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ===== _buildBottomNavigationBar REPLACED =====
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
       currentIndex: _selectedBottomNavIndex,
       onTap: (index) {
-        setState(() {
-          _selectedBottomNavIndex = index;
-        });
-
-        // TODO: Handle navigation based on index
+        // Handle navigation
+        if (index == 3) {
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              )
+              .then((_) {
+                // Reload dashboard when returning from profile
+                _loadUserDecks();
+                setState(() {
+                  _selectedBottomNavIndex = 0;
+                });
+              });
+        } else {
+          // Handle other tabs if needed, or just set the index
+          setState(() {
+            _selectedBottomNavIndex = index;
+          });
+        }
       },
       type: BottomNavigationBarType.fixed,
       selectedItemColor: AppColors.primary,
@@ -455,4 +539,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ],
     );
   }
+
+  // ============================================
 }
