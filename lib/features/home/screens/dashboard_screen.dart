@@ -15,9 +15,22 @@ import '../../../models/user_stats.dart';
 import '../../../models/deck_progress.dart';
 import '../../../services/user_flashcard_service.dart';
 
-// ===== IMPORT ADDED =====
 import '../../profile/screens/profile_screen.dart';
-// ========================
+
+import '../../../services/gamification_service.dart';
+import '../../../models/daily_goal.dart';
+import '../widgets/daily_goal_widget.dart';
+
+import '../screens/settings_screen.dart';
+
+import '../../../core/widgets/streak_dialog.dart';
+
+// ===== NEW IMPORTS ADDED =====
+import '../../sharing/screens/create_deck_screen.dart';
+import '../../sharing/screens/community_decks_screen.dart';
+import '../../sharing/screens/deck_detail_screen.dart';
+import '../../../services/deck_service.dart';
+// =============================
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -36,6 +49,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final UserFlashcardService _userFlashcardService = UserFlashcardService();
   Map<String, int> _dueCardsCount = {};
+
+  final GamificationService _gamificationService = GamificationService();
+  DailyGoal? _dailyGoal;
+
+  bool _hasShownStreakDialog = false;
 
   List<DeckModel> _userDecks = [];
   bool _isLoading = true;
@@ -85,13 +103,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Load deck progress
       final deckProgress = await _progressService.getAllDeckProgress(userId);
 
+      // Load daily goal
+      final dailyGoal = await _gamificationService.getTodayGoal(userId);
+
       setState(() {
         _userDecks = decks;
         _userStats = stats;
         _deckProgressMap = deckProgress;
         _dueCardsCount = dueCards;
+        _dailyGoal = dailyGoal;
         _isLoading = false;
       });
+
+      // Show streak dialog for milestones
+      if (!_hasShownStreakDialog && stats.currentStreak > 0) {
+        _hasShownStreakDialog = true;
+
+        // Show dialog for streak milestones
+        if ([3, 7, 14, 30, 50, 100].contains(stats.currentStreak)) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              StreakDialog.show(
+                context,
+                streakCount: stats.currentStreak,
+                message: _gamificationService.getStreakMessage(
+                  stats.currentStreak,
+                ),
+              );
+            }
+          });
+        }
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -186,6 +228,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 24),
 
+          // Daily Goal
+          if (_dailyGoal != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: DailyGoalWidget(goal: _dailyGoal!),
+            ),
+
+          const SizedBox(height: 24),
+
           // Your Decks Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -265,18 +316,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 32),
 
-          // Shared Decks Section (placeholder)
+          // ===== UPDATED: Shared Decks Section =====
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Shared Decks', style: AppTextStyles.headingMedium),
-                IconButton(
-                  icon: const Icon(Icons.search),
+                Text('Community Decks', style: AppTextStyles.headingMedium),
+                TextButton.icon(
                   onPressed: () {
-                    // TODO: Navigate to search
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (context) => const CommunityDecksScreen(),
+                          ),
+                        )
+                        .then((_) => _loadUserDecks());
                   },
+                  icon: const Icon(Icons.explore),
+                  label: const Text('Explore'),
                 ),
               ],
             ),
@@ -284,8 +342,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           const SizedBox(height: 16),
 
-          _buildSharedDecksPlaceholder(),
+          _buildCommunityDecksPreview(),
 
+          // =========================================
           const SizedBox(height: 32),
 
           // Quick study buttons
@@ -378,14 +437,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Row(
         children: [
-          // Menu button
-          IconButton(
+          // ===== UPDATED: Menu button with popup =====
+          PopupMenuButton<String>(
             icon: const Icon(Icons.menu),
-            onPressed: () {
-              // TODO: Open drawer
+            onSelected: (value) {
+              if (value == 'create_deck') {
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (context) => const CreateDeckScreen(),
+                      ),
+                    )
+                    .then((_) => _loadUserDecks());
+              } else if (value == 'settings') {
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsScreen(),
+                      ),
+                    )
+                    .then((_) => _loadUserDecks());
+              }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'create_deck',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline),
+                    SizedBox(width: 8),
+                    Text('Create Custom Deck'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings),
+                    SizedBox(width: 8),
+                    Text('Settings'),
+                  ],
+                ),
+              ),
+            ],
           ),
 
+          // ===========================================
           const Spacer(),
 
           // App title
@@ -396,7 +494,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Profile button
           GestureDetector(
             onTap: () {
-              // TODO: Navigate to profile
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    ),
+                  )
+                  .then((_) => _loadUserDecks());
             },
             child: CircleAvatar(
               radius: 20,
@@ -444,85 +548,181 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSharedDecksPlaceholder() {
+  // ===== NEW: Community Decks Preview =====
+  Widget _buildCommunityDecksPreview() {
     return SizedBox(
       height: 140,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        itemCount: 3,
-        itemBuilder: (context, index) {
-          return Container(
-            width: 180,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: AppColors.gray200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'IMG',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.gray400,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Shared Deck ${index + 1}',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text('by User${index + 1}', style: AppTextStyles.bodySmall),
-                ],
+      child: FutureBuilder<List<DeckModel>>(
+        future: DeckService().getPublicDecks(limit: 5),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final decks = snapshot.data!;
+
+          if (decks.isEmpty) {
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
+              child: Center(
+                child: Text(
+                  'No community decks yet',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            itemCount: decks.length,
+            itemBuilder: (context, index) {
+              final deck = decks[index];
+              return Container(
+                width: 180,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (context) => DeckDetailScreen(
+                              deck: deck,
+                              isInCollection: _userDecks.any(
+                                (d) => d.id == deck.id,
+                              ),
+                            ),
+                          ),
+                        )
+                        .then((_) => _loadUserDecks());
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: AppColors.gray200,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: deck.thumbnailUrl != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    deck.thumbnailUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Text(
+                                          'IMG',
+                                          style: AppTextStyles.bodyMedium
+                                              .copyWith(
+                                                color: AppColors.gray400,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    'IMG',
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.gray400,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          deck.name,
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Spacer(),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_outline,
+                              size: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                deck.creatorName ?? 'Anonymous',
+                                style: AppTextStyles.bodySmall,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
+  // ========================================
 
-  // ===== _buildBottomNavigationBar REPLACED =====
+  // ===== UPDATED: Bottom Navigation =====
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
       currentIndex: _selectedBottomNavIndex,
       onTap: (index) {
-        // Handle navigation
-        if (index == 3) {
+        if (index == 2) {
+          // Explore/Shared tab
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (context) => const CommunityDecksScreen(),
+                ),
+              )
+              .then((_) => _loadUserDecks());
+        } else if (index == 3) {
+          // Profile tab
           Navigator.of(context)
               .push(
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
               )
               .then((_) {
-                // Reload dashboard when returning from profile
                 _loadUserDecks();
                 setState(() {
                   _selectedBottomNavIndex = 0;
                 });
               });
         } else {
-          // Handle other tabs if needed, or just set the index
           setState(() {
             _selectedBottomNavIndex = index;
           });
@@ -534,11 +734,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.style), label: 'Study'),
-        BottomNavigationBarItem(icon: Icon(Icons.share), label: 'Shared'),
+        BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Explore'),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
       ],
     );
   }
 
-  // ============================================
+  // ======================================
 }

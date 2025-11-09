@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_flashcard.dart';
 import '../features/study/models/flashcard_model.dart';
+import '../core/constants/spaced_repetition_constants.dart';
 
 class UserFlashcardService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,6 +29,7 @@ class UserFlashcardService {
           userId: userId,
           flashcardId: flashcardId,
           deckId: deckId,
+          isLearning: true, // Start in learning phase
         );
 
         await _firestore
@@ -87,7 +89,8 @@ class UserFlashcardService {
     }
   }
 
-  /// Get due cards for a deck (cards ready for review)
+  /// Get due cards for a deck (cards ready for review NOW)
+  /// This includes both learning cards and review cards
   Future<List<UserFlashcard>> getDueCards({
     required String userId,
     required String deckId,
@@ -100,11 +103,20 @@ class UserFlashcardService {
           .where('deckId', isEqualTo: deckId)
           .get();
 
-      // Filter cards that are due
+      // Filter cards that are due (includes learning cards with short intervals)
       final dueCards = snapshot.docs
           .map((doc) => UserFlashcard.fromMap(doc.data(), doc.id))
           .where((card) => card.isDue)
           .toList();
+
+      if (kDebugMode) {
+        print('📋 Due Cards Breakdown:');
+        final learningDue = dueCards.where((c) => c.isLearning).length;
+        final reviewDue = dueCards.where((c) => !c.isLearning).length;
+        print('   Learning: $learningDue');
+        print('   Review: $reviewDue');
+        print('   Total: ${dueCards.length}');
+      }
 
       return dueCards;
     } catch (e) {
@@ -131,9 +143,15 @@ class UserFlashcardService {
       final reviewedCardIds = userCards.map((uc) => uc.flashcardId).toSet();
 
       // Return cards that haven't been reviewed
-      return allFlashcardIds
+      final newCards = allFlashcardIds
           .where((id) => !reviewedCardIds.contains(id))
           .toList();
+
+      if (kDebugMode) {
+        print('🆕 New cards available: ${newCards.length}');
+      }
+
+      return newCards;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error getting new cards: $e');
@@ -143,6 +161,7 @@ class UserFlashcardService {
   }
 
   /// Get study queue for a deck (due cards + new cards)
+  /// This is the main method called when starting a study session
   Future<StudyQueue> getStudyQueue({
     required String userId,
     required String deckId,
@@ -150,7 +169,7 @@ class UserFlashcardService {
     int maxNewCards = 10,
   }) async {
     try {
-      // Get due cards
+      // Get due cards (both learning and review)
       final dueUserCards = await getDueCards(userId: userId, deckId: deckId);
 
       // Get new card IDs
@@ -161,14 +180,21 @@ class UserFlashcardService {
         allFlashcardIds: allFlashcardIds,
       );
 
-      // Limit new cards based on due cards
-      final recommendedNewCount = dueUserCards.length > 20
-          ? 0
-          : (dueUserCards.length > 10 ? 5 : maxNewCards);
+      // Calculate how many new cards to introduce
+      // Limit based on current due cards
+      int recommendedNewCount;
+      if (dueUserCards.length >=
+          SpacedRepetitionConstants.reviewCardThresholdForNewCards) {
+        recommendedNewCount = 0;
+      } else if (dueUserCards.length > 20) {
+        recommendedNewCount = 5;
+      } else {
+        recommendedNewCount = maxNewCards;
+      }
 
       final limitedNewCardIds = newCardIds.take(recommendedNewCount).toList();
 
-      // Combine flashcards
+      // Map to flashcard models
       final dueFlashcards = allFlashcards
           .where((f) => dueUserCards.any((uc) => uc.flashcardId == f.id))
           .toList();
@@ -177,16 +203,29 @@ class UserFlashcardService {
           .where((f) => limitedNewCardIds.contains(f.id))
           .toList();
 
+      if (kDebugMode) {
+        print('📚 Study Queue Summary:');
+        print('   Due cards: ${dueFlashcards.length}');
+        print('   New cards: ${newFlashcards.length}');
+        print('   Total: ${dueFlashcards.length + newFlashcards.length}');
+      }
+
       return StudyQueue(
         dueCards: dueFlashcards,
         newCards: newFlashcards,
         dueUserCards: dueUserCards,
+        allCards: allFlashcards,
       );
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error getting study queue: $e');
       }
-      return StudyQueue(dueCards: [], newCards: [], dueUserCards: []);
+      return StudyQueue(
+        dueCards: [],
+        newCards: [],
+        dueUserCards: [],
+        allCards: allFlashcards,
+      );
     }
   }
 
@@ -206,6 +245,7 @@ class UserFlashcardService {
           userId: userId,
           flashcardId: flashcardId,
           deckId: deckId,
+          isLearning: true,
         );
 
         batch.set(
@@ -226,6 +266,61 @@ class UserFlashcardService {
       rethrow;
     }
   }
+
+  /// Get deck statistics
+  Future<DeckStatistics> getDeckStatistics({
+    required String userId,
+    required String deckId,
+    required List<FlashcardModel> allFlashcards,
+  }) async {
+    try {
+      final userCards = await getUserFlashcardsForDeck(
+        userId: userId,
+        deckId: deckId,
+      );
+
+      final dueCards = await getDueCards(userId: userId, deckId: deckId);
+      final newCardIds = await getNewCardIds(
+        userId: userId,
+        deckId: deckId,
+        allFlashcardIds: allFlashcards.map((f) => f.id).toList(),
+      );
+
+      // Count cards by status
+      final learningCount = userCards.where((c) => c.isLearning).length;
+      final reviewCount = userCards.where((c) => !c.isLearning).length;
+      final dueCount = dueCards.length;
+      final newCount = newCardIds.length;
+
+      if (kDebugMode) {
+        print('📊 Deck Statistics:');
+        print('   Total cards: ${allFlashcards.length}');
+        print('   New: $newCount');
+        print('   Learning: $learningCount');
+        print('   Review: $reviewCount');
+        print('   Due now: $dueCount');
+      }
+
+      return DeckStatistics(
+        totalCards: allFlashcards.length,
+        newCards: newCount,
+        learningCards: learningCount,
+        reviewCards: reviewCount,
+        dueCards: dueCount,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error getting deck statistics: $e');
+      }
+      return DeckStatistics(
+        totalCards: allFlashcards.length,
+        newCards: 0,
+        learningCards: 0,
+        reviewCards: 0,
+        dueCards: 0,
+      );
+    }
+  }
 }
 
 /// Helper class for organizing study session cards
@@ -233,14 +328,31 @@ class StudyQueue {
   final List<FlashcardModel> dueCards;
   final List<FlashcardModel> newCards;
   final List<UserFlashcard> dueUserCards;
+  final List<FlashcardModel> allCards;
 
   StudyQueue({
     required this.dueCards,
     required this.newCards,
     required this.dueUserCards,
+    required this.allCards,
   });
 
   int get totalCards => dueCards.length + newCards.length;
+}
 
-  List<FlashcardModel> get allCards => [...dueCards, ...newCards];
+/// Statistics for a deck
+class DeckStatistics {
+  final int totalCards;
+  final int newCards;
+  final int learningCards;
+  final int reviewCards;
+  final int dueCards;
+
+  DeckStatistics({
+    required this.totalCards,
+    required this.newCards,
+    required this.learningCards,
+    required this.reviewCards,
+    required this.dueCards,
+  });
 }

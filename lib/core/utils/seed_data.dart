@@ -104,7 +104,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'skeleton_bones',
-        imageUrl: '${placeholderImage}Femur',
+        imageUrl: 'assets/images/flashcards/skeleton_bones/femur.jpg',
         correctAnswer: 'femur',
         alternateAnswers: ['thigh bone', 'femoral bone'],
         hint: 'Longest bone in the human body',
@@ -114,7 +114,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'skeleton_bones',
-        imageUrl: '${placeholderImage}Skull',
+        imageUrl: 'assets/images/flashcards/skeleton_bones/skull.jpg',
         correctAnswer: 'skull',
         alternateAnswers: ['cranium'],
         hint: 'Protects the brain',
@@ -124,7 +124,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'skeleton_bones',
-        imageUrl: '${placeholderImage}Humerus',
+        imageUrl: 'assets/images/flashcards/skeleton_bones/humerus.jpg',
         correctAnswer: 'humerus',
         alternateAnswers: ['upper arm bone'],
         hint: 'Bone in the upper arm',
@@ -134,7 +134,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'skeleton_bones',
-        imageUrl: '${placeholderImage}Tibia',
+        imageUrl: 'assets/images/flashcards/skeleton_bones/tibia.jpg',
         correctAnswer: 'tibia',
         alternateAnswers: ['shin bone'],
         hint: 'Larger bone in the lower leg',
@@ -144,7 +144,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'skeleton_bones',
-        imageUrl: '${placeholderImage}Radius',
+        imageUrl: 'assets/images/flashcards/skeleton_bones/radius.jpg',
         correctAnswer: 'radius',
         alternateAnswers: ['forearm bone'],
         hint: 'Lateral bone of the forearm',
@@ -160,7 +160,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'periodic_table',
-        imageUrl: '${placeholderImage}H',
+        imageUrl: 'assets/images/flashcards/periodic_table/hydrogen.jpg',
         correctAnswer: 'hydrogen',
         alternateAnswers: ['h'],
         hint: 'Atomic number 1',
@@ -170,7 +170,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'periodic_table',
-        imageUrl: '${placeholderImage}He',
+        imageUrl: 'assets/images/flashcards/periodic_table/helium.jpg',
         correctAnswer: 'helium',
         alternateAnswers: ['he'],
         hint: 'Noble gas, atomic number 2',
@@ -180,7 +180,8 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'periodic_table',
-        imageUrl: '${placeholderImage}O',
+        imageUrl:
+            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNd8SHg0M40eNzgs4VlrpPLjg6AWlA7pHLag&s',
         correctAnswer: 'oxygen',
         alternateAnswers: ['o'],
         hint: 'Essential for breathing',
@@ -190,7 +191,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'periodic_table',
-        imageUrl: '${placeholderImage}Au',
+        imageUrl: 'assets/images/flashcards/periodic_table/gold.jpg',
         correctAnswer: 'gold',
         alternateAnswers: ['au'],
         hint: 'Precious metal with symbol Au',
@@ -200,7 +201,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'periodic_table',
-        imageUrl: '${placeholderImage}Fe',
+        imageUrl: 'assets/images/flashcards/periodic_table/iron.jpg',
         correctAnswer: 'iron',
         alternateAnswers: ['fe'],
         hint: 'Symbol Fe, used in steel',
@@ -216,7 +217,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'circuit_symbols',
-        imageUrl: '${placeholderImage}Resistor',
+        imageUrl: 'assets/images/flashcards/circuit_symbols/resistor.jpg',
         correctAnswer: 'resistor',
         alternateAnswers: ['resistance'],
         hint: 'Opposes current flow',
@@ -226,7 +227,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'circuit_symbols',
-        imageUrl: '${placeholderImage}Capacitor',
+        imageUrl: 'assets/images/flashcards/circuit_symbols/capacitor.jpg',
         correctAnswer: 'capacitor',
         alternateAnswers: ['condenser'],
         hint: 'Stores electrical charge',
@@ -236,7 +237,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'circuit_symbols',
-        imageUrl: '${placeholderImage}Battery',
+        imageUrl: 'assets/images/flashcards/circuit_symbols/battery.jpg',
         correctAnswer: 'battery',
         alternateAnswers: ['cell', 'power source'],
         hint: 'Provides voltage',
@@ -246,7 +247,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'circuit_symbols',
-        imageUrl: '${placeholderImage}LED',
+        imageUrl: 'assets/images/flashcards/circuit_symbols/led.jpg',
         correctAnswer: 'led',
         alternateAnswers: ['light emitting diode', 'diode'],
         hint: 'Emits light when current flows',
@@ -256,7 +257,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'circuit_symbols',
-        imageUrl: '${placeholderImage}Switch',
+        imageUrl: 'assets/images/flashcards/circuit_symbols/switch.jpg',
         correctAnswer: 'switch',
         alternateAnswers: ['circuit breaker'],
         hint: 'Opens or closes a circuit',
@@ -272,7 +273,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'computer_hardware',
-        imageUrl: '${placeholderImage}CPU',
+        imageUrl: 'assets/images/flashcards/computer_hardware/cpu.jpg',
         correctAnswer: 'cpu',
         alternateAnswers: ['processor', 'central processing unit'],
         hint: 'Brain of the computer',
@@ -282,7 +283,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'computer_hardware',
-        imageUrl: '${placeholderImage}RAM',
+        imageUrl: 'assets/images/flashcards/computer_hardware/ram.jpg',
         correctAnswer: 'ram',
         alternateAnswers: ['memory', 'random access memory'],
         hint: 'Temporary storage for running programs',
@@ -292,7 +293,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'computer_hardware',
-        imageUrl: '${placeholderImage}GPU',
+        imageUrl: 'assets/images/flashcards/computer_hardware/gpu.jpg',
         correctAnswer: 'gpu',
         alternateAnswers: ['graphics card', 'video card'],
         hint: 'Handles graphics processing',
@@ -302,7 +303,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'computer_hardware',
-        imageUrl: '${placeholderImage}SSD',
+        imageUrl: 'assets/images/flashcards/computer_hardware/ssd.jpg',
         correctAnswer: 'ssd',
         alternateAnswers: ['solid state drive', 'storage'],
         hint: 'Fast storage with no moving parts',
@@ -312,7 +313,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'computer_hardware',
-        imageUrl: '${placeholderImage}Motherboard',
+        imageUrl: 'assets/images/flashcards/computer_hardware/motherboard.jpg',
         correctAnswer: 'motherboard',
         alternateAnswers: ['mainboard', 'mobo'],
         hint: 'Connects all computer components',
@@ -330,7 +331,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'cell_organelles',
-        imageUrl: '${placeholderImage}Nucleus',
+        imageUrl: 'assets/images/flashcards/cell_organelles/nucleus.jpg',
         correctAnswer: 'nucleus',
         hint: 'Contains the cell\'s genetic material',
         difficulty: 'easy',
@@ -339,7 +340,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'cell_organelles',
-        imageUrl: '${placeholderImage}Mitochondria',
+        imageUrl: 'assets/images/flashcards/cell_organelles/mitochondria.jpg',
         correctAnswer: 'mitochondria',
         alternateAnswers: ['powerhouse of the cell'],
         hint: 'Generates most of the cell\'s ATP',
@@ -349,7 +350,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'cell_organelles',
-        imageUrl: '${placeholderImage}Ribosome',
+        imageUrl: 'assets/images/flashcards/cell_organelles/ribosome.jpg',
         correctAnswer: 'ribosome',
         hint: 'Synthesizes proteins',
         difficulty: 'medium',
@@ -363,7 +364,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'physics_formulas',
-        imageUrl: '${placeholderImage}F=ma',
+        imageUrl: 'assets/images/flashcards/physics_formulas/f_equals_ma',
         correctAnswer: 'f=ma',
         alternateAnswers: [
           'force = mass * acceleration',
@@ -376,7 +377,8 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'physics_formulas',
-        imageUrl: '${placeholderImage}E=mc^2',
+        imageUrl:
+            'https://study.com/cimages/multimages/16/energy-and-mass-relationship.jpg',
         correctAnswer: 'e=mc^2',
         alternateAnswers: ['energy = mass * speed of light squared'],
         hint: 'Mass–energy equivalence',
@@ -386,7 +388,8 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'physics_formulas',
-        imageUrl: '${placeholderImage}V=IR',
+        imageUrl:
+            'https://www.electronics-tutorials.ws/wp-content/uploads/2018/05/dccircuits-dcp3.gif',
         correctAnswer: 'v=ir',
         alternateAnswers: ['voltage = current * resistance', 'ohm\'s law'],
         hint: 'Ohm\'s Law',
@@ -401,7 +404,8 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'network_protocols',
-        imageUrl: '${placeholderImage}HTTP',
+        imageUrl:
+            'https://kinsta.com/wp-content/uploads/2022/06/what-is-an-http-request.jpg',
         correctAnswer: 'http',
         alternateAnswers: ['hypertext transfer protocol'],
         hint: 'The foundation of data communication for the World Wide Web',
@@ -411,7 +415,8 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'network_protocols',
-        imageUrl: '${placeholderImage}TCP',
+        imageUrl:
+            'https://www.avast.com/hs-fs/hubfs/New_Avast_Academy/%20What%20Is%20TCP_IP/What_is_TCP-IP.png?width=660&name=What_is_TCP-IP.png',
         correctAnswer: 'tcp',
         alternateAnswers: ['transmission control protocol'],
         hint: 'Provides reliable, ordered, and error-checked delivery',
@@ -421,7 +426,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'network_protocols',
-        imageUrl: '${placeholderImage}IP',
+        imageUrl: 'assets/images/flashcards/network_protocols/ip',
         correctAnswer: 'ip',
         alternateAnswers: ['internet protocol'],
         hint: 'Principal communications protocol for relaying datagrams',

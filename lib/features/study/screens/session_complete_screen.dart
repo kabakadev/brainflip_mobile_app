@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Badge;
 import 'dart:math' as math;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -7,11 +7,15 @@ import '../models/deck_model.dart';
 import '../../home/screens/dashboard_screen.dart';
 import 'study_session_screen.dart';
 
-// ===== IMPORTS ADDED =====
 import '../../../services/progress_service.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../models/user_stats.dart';
-// =========================
+
+import '../../../models/badge.dart';
+
+// ===== IMPORT ADDED =====
+import '../../../core/widgets/celebration_overlay.dart';
+// ========================
 
 class SessionCompleteScreen extends StatefulWidget {
   final DeckModel deck;
@@ -19,6 +23,9 @@ class SessionCompleteScreen extends StatefulWidget {
   final int correctCount;
   final int incorrectCount;
   final Duration duration;
+  final List<Badge> newBadges;
+  final int averageTimePerCard;
+  final bool isPracticeMode;
 
   const SessionCompleteScreen({
     super.key,
@@ -27,6 +34,9 @@ class SessionCompleteScreen extends StatefulWidget {
     required this.correctCount,
     required this.incorrectCount,
     required this.duration,
+    this.isPracticeMode = false,
+    this.newBadges = const [],
+    this.averageTimePerCard = 0,
   });
 
   @override
@@ -39,11 +49,9 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
   late Animation<double> _scaleAnimation;
   late Animation<double> _progressAnimation;
 
-  // ===== CLASS FIELDS ADDED =====
   final ProgressService _progressService = ProgressService();
   final AuthService _authService = AuthService();
   UserStats? _userStats;
-  // ==============================
 
   @override
   void initState() {
@@ -69,12 +77,9 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
     );
 
     _controller.forward();
-    // ===== METHOD CALL ADDED =====
     _loadUserStats();
-    // =============================
   }
 
-  // ===== NEW METHOD ADDED =====
   Future<void> _loadUserStats() async {
     final userId = _authService.currentUser?.uid;
     if (userId != null) {
@@ -84,7 +89,6 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
       });
     }
   }
-  // ============================
 
   @override
   void dispose() {
@@ -119,74 +123,81 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ===== FIX: The Scaffold should be the outer-most widget =====
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                // Header
-                _buildHeader(),
+        // ===== WRAPPER WIDGET MOVED HERE =====
+        // This way, it only wraps the content, not the whole screen structure.
+        child: CelebrationOverlay(
+          show: widget.newBadges.isNotEmpty || _accuracyPercentage >= 90,
+          child: SingleChildScrollView(
+            // =================================
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  // Header
+                  _buildHeader(),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                // Circular progress indicator
-                _buildCircularProgress(),
+                  // Circular progress indicator
+                  _buildCircularProgress(),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // Performance message
-                AnimatedBuilder(
-                  animation: _scaleAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _scaleAnimation.value,
-                      child: child,
-                    );
-                  },
-                  child: Text(
-                    _performanceMessage,
-                    style: AppTextStyles.headingLarge.copyWith(
-                      color: _performanceColor,
+                  // Performance message
+                  AnimatedBuilder(
+                    animation: _scaleAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _scaleAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: Text(
+                      _performanceMessage,
+                      style: AppTextStyles.headingLarge.copyWith(
+                        color: _performanceColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    'You\'ve completed your study session',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 32),
 
-                Text(
-                  'You\'ve completed your study session',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                  // Stats cards
+                  _buildStatsCards(),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                // Stats cards
-                _buildStatsCards(),
+                  // Streak indicator
+                  _buildStreakIndicator(),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                // Streak indicator
-                _buildStreakIndicator(),
+                  // Badges earned
+                  _buildBadgesSection(),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                // Badges earned (placeholder)
-                _buildBadgesSection(),
+                  // Action buttons
+                  _buildActionButtons(),
 
-                const SizedBox(height: 32),
-
-                // Action buttons
-                _buildActionButtons(),
-
-                const SizedBox(height: 16),
-              ],
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           ),
         ),
@@ -311,19 +322,19 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            '${widget.correctCount}',
-            'Correct',
-            Icons.check_circle_outline,
-            AppColors.success,
+            '${widget.averageTimePerCard}s',
+            'Avg Time',
+            Icons.speed,
+            AppColors.secondary,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
             _formatDuration(widget.duration),
-            'Time',
+            'Total Time',
             Icons.timer_outlined,
-            AppColors.secondary,
+            AppColors.warning,
           ),
         ),
       ],
@@ -364,7 +375,6 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
     );
   }
 
-  // ===== _buildStreakIndicator METHOD REPLACED =====
   Widget _buildStreakIndicator() {
     final streak = _userStats?.currentStreak ?? 0;
 
@@ -421,46 +431,74 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
       ),
     );
   }
-  // ===============================================
 
   Widget _buildBadgesSection() {
+    if (widget.newBadges.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('New Badges Earned', style: AppTextStyles.headingSmall),
-        const SizedBox(height: 12),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildBadge(Icons.emoji_events, 'First Study'),
-            const SizedBox(width: 16),
-            _buildBadge(Icons.speed, 'Speed Demon'),
-            const SizedBox(width: 16),
-            _buildBadge(Icons.psychology, 'Brain Power'),
+            const Icon(Icons.celebration, color: AppColors.secondary, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'New Badges Earned!',
+              style: AppTextStyles.headingSmall.copyWith(
+                color: AppColors.secondary,
+              ),
+            ),
           ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          alignment: WrapAlignment.center,
+          children: widget.newBadges.map((badge) {
+            return _buildBadge(badge);
+          }).toList(),
         ),
       ],
     );
   }
 
-  Widget _buildBadge(IconData icon, String label) {
+  Widget _buildBadge(Badge badge) {
     return Column(
       children: [
         Container(
-          width: 56,
-          height: 56,
+          width: 64,
+          height: 64,
           decoration: BoxDecoration(
-            color: AppColors.secondary.withOpacity(0.1),
+            color: AppColors.secondary.withOpacity(0.2),
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.secondary, width: 2),
+            border: Border.all(color: AppColors.secondary, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.secondary.withOpacity(0.3),
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
           ),
-          child: Icon(icon, color: AppColors.secondary, size: 28),
+          child: Center(
+            child: Text(badge.icon, style: const TextStyle(fontSize: 32)),
+          ),
         ),
         const SizedBox(height: 8),
-        Text(
-          label,
-          style: AppTextStyles.labelSmall,
-          textAlign: TextAlign.center,
+        SizedBox(
+          width: 80,
+          child: Text(
+            badge.name,
+            style: AppTextStyles.labelSmall.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

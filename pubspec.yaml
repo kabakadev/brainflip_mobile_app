@@ -40,6 +40,8 @@ dependencies:
   firebase_storage: ^13.0.4
   google_sign_in: ^6.2.1
   flutter_svg: ^2.2.2
+  shared_preferences: ^2.0.0 # Add this line (check for the latest version)
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +68,13 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - assets/images/flashcards/skeleton_bones/
+    - assets/images/flashcards/periodic_table/
+    - assets/images/flashcards/circuit_symbols/
+    - assets/images/flashcards/computer_hardware/
+    - assets/images/flashcards/cell_organelles/
+    - assets/images/flashcards/physics_formulas/
+    - assets/images/flashcards/network_protocols/
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Badge;
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+import '../../../services/gamification_service.dart';
+import '../../../models/badge.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -17,6 +20,8 @@ import '../../auth/services/auth_service.dart';
 import '../../../services/user_flashcard_service.dart';
 import '../services/spaced_repetition_service.dart';
 import '../../../models/user_flashcard.dart';
+import '../../../services/settings_service.dart';
+import '../../../core/constants/spaced_repetition_constants.dart';
 
 class StudySessionScreen extends StatefulWidget {
   final DeckModel deck;
@@ -40,7 +45,17 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       SpacedRepetitionService();
 
   Map<String, UserFlashcard> _userFlashcardMap = {};
-  List<int> _cardStartTimes = []; // Track time per card
+  List<int> _cardStartTimes = [];
+
+  final GamificationService _gamificationService = GamificationService();
+
+  // Timer fields
+  Timer? _cardTimer;
+  late int _timeRemaining;
+  late int _timeLimit;
+  late bool _isTimerEnabled;
+  List<int> _cardTimes = [];
+  List<Badge> _newBadges = [];
 
   List<FlashcardModel> _flashcards = [];
   int _currentCardIndex = 0;
@@ -49,6 +64,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
   bool _showAnswer = false;
   String? _userAnswer;
   bool? _isCorrect;
+  bool _isPracticeMode = false;
 
   // Session stats
   int _correctCount = 0;
@@ -58,14 +74,84 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
   @override
   void initState() {
     super.initState();
+
+    _isTimerEnabled = SettingsService.isTimerEnabled();
+    _timeLimit = SettingsService.getTimerDuration();
+    _timeRemaining = _timeLimit;
+
     _loadFlashcards();
   }
 
   @override
   void dispose() {
+    _stopCardTimer();
     _answerController.dispose();
     _answerFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _startPracticeMode() async {
+    setState(() {
+      _isLoading = true;
+      _isPracticeMode = true;
+    });
+
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('User not authenticated');
+
+      // Get ALL flashcards for the deck (ignore due dates)
+      final allFlashcards = await _firestoreService.getFlashcardsByDeck(
+        widget.deck.id,
+      );
+
+      // Shuffle for variety
+      allFlashcards.shuffle();
+
+      // Limit to prevent overwhelm
+      final practiceCards = allFlashcards
+          .take(SpacedRepetitionConstants.maxCardsPerSession)
+          .toList();
+
+      setState(() {
+        _flashcards = practiceCards;
+        _userFlashcardMap = {}; // Empty since we're not tracking
+        _cardStartTimes = List.filled(practiceCards.length, 0);
+        _cardTimes = List.filled(practiceCards.length, 0);
+        _isLoading = false;
+      });
+
+      // Start timer for first card
+      if (practiceCards.isNotEmpty) {
+        _cardStartTimes[0] = DateTime.now().millisecondsSinceEpoch;
+        _startCardTimer();
+      }
+
+      // Auto-focus answer input
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _answerFocusNode.requestFocus();
+        }
+      });
+
+      if (kDebugMode) {
+        print('🏋️ Practice Mode Started:');
+        print('   Total cards: ${practiceCards.length}');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start practice mode: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadFlashcards() async {
@@ -87,7 +173,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
         userId: userId,
         deckId: widget.deck.id,
         allFlashcards: allFlashcards,
-        maxNewCards: 10,
+        maxNewCards: SpacedRepetitionConstants.maxNewCardsPerSession,
       );
 
       // Load user flashcard data for due cards
@@ -113,16 +199,23 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       // Add new cards at the end
       sortedFlashcards.addAll(studyQueue.newCards);
 
+      // Limit total cards per session
+      final finalSessionList = sortedFlashcards
+          .take(SpacedRepetitionConstants.maxCardsPerSession)
+          .toList();
+
       setState(() {
-        _flashcards = sortedFlashcards;
+        _flashcards = finalSessionList;
         _userFlashcardMap = userCardMap;
-        _cardStartTimes = List.filled(sortedFlashcards.length, 0);
+        _cardStartTimes = List.filled(finalSessionList.length, 0);
+        _cardTimes = List.filled(finalSessionList.length, 0);
         _isLoading = false;
       });
 
       // Start timer for first card
-      if (sortedFlashcards.isNotEmpty) {
+      if (finalSessionList.isNotEmpty) {
         _cardStartTimes[0] = DateTime.now().millisecondsSinceEpoch;
+        _startCardTimer();
       }
 
       // Auto-focus answer input
@@ -133,10 +226,10 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       });
 
       if (kDebugMode) {
-        print('📚 Study Queue:');
+        print('📚 Study Session Loaded:');
         print('   Due cards: ${studyQueue.dueUserCards.length}');
         print('   New cards: ${studyQueue.newCards.length}');
-        print('   Total: ${sortedFlashcards.length}');
+        print('   Session cards: ${finalSessionList.length}');
       }
     } catch (e) {
       setState(() {
@@ -156,22 +249,30 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
 
   void _flipCard() {
     if (_userAnswer == null || _userAnswer!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an answer first'),
-          backgroundColor: AppColors.warning,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
+      if (_timeRemaining > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter an answer first'),
+            backgroundColor: AppColors.warning,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
     }
+
+    _stopCardTimer();
 
     final currentCard = _flashcards[_currentCardIndex];
     final isCorrect = Validators.validateFlashcardAnswer(
-      _userAnswer!,
+      _userAnswer ?? '',
       currentCard.correctAnswer,
       currentCard.alternateAnswers,
     );
+
+    // Calculate time taken
+    final timeTaken = (_timeLimit - _timeRemaining);
+    _cardTimes[_currentCardIndex] = timeTaken;
 
     setState(() {
       _isFlipped = true;
@@ -192,47 +293,62 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
 
     final currentCard = _flashcards[_currentCardIndex];
 
-    try {
-      // Calculate time spent on this card
-      final timeSpent = (_cardStartTimes[_currentCardIndex] > 0)
-          ? (DateTime.now().millisecondsSinceEpoch -
-                    _cardStartTimes[_currentCardIndex]) ~/
-                1000
-          : 0;
+    if (!_isPracticeMode) {
+      try {
+        // Calculate time spent on this card
+        final timeSpent = _cardTimes[_currentCardIndex];
 
-      // Get or create user flashcard
-      UserFlashcard userCard =
-          _userFlashcardMap[currentCard.id] ??
-          await _userFlashcardService.getUserFlashcard(
-            userId: userId,
-            flashcardId: currentCard.id,
-            deckId: widget.deck.id,
-          );
+        // Get or create user flashcard
+        UserFlashcard userCard =
+            _userFlashcardMap[currentCard.id] ??
+            await _userFlashcardService.getUserFlashcard(
+              userId: userId,
+              flashcardId: currentCard.id,
+              deckId: widget.deck.id,
+            );
 
-      // Convert answer to quality rating
-      final quality = _spacedRepetitionService.convertAnswerToQuality(
-        isCorrect: _isCorrect ?? false,
-        timeSpentSeconds: timeSpent,
-      );
+        // Convert answer to quality rating
+        final quality = _spacedRepetitionService.convertAnswerToQuality(
+          isCorrect: _isCorrect ?? false,
+          timeSpentSeconds: timeSpent,
+        );
 
-      // Calculate next review
-      userCard = _spacedRepetitionService.calculateNextReview(
-        userCard: userCard,
-        quality: quality,
-      );
+        // Calculate next review
+        userCard = _spacedRepetitionService.calculateNextReview(
+          userCard: userCard,
+          quality: quality,
+        );
 
-      // Save to Firestore
-      await _userFlashcardService.updateUserFlashcard(userCard);
+        // Save to Firestore
+        await _userFlashcardService.updateUserFlashcard(userCard);
 
-      if (kDebugMode) {
-        print('💾 Card review saved:');
-        print('   Card: ${currentCard.correctAnswer}');
-        print('   Quality: $quality');
-        print('   Next review in: ${userCard.interval} days');
+        if (kDebugMode) {
+          print('💾 Card review saved:');
+          print('   Card: ${currentCard.correctAnswer}');
+          print('   Quality: $quality');
+          print('   Time: ${timeSpent}s');
+          print('   Status: ${userCard.status}');
+          if (userCard.isLearning) {
+            print('   Learning step: ${userCard.learningStep}');
+            print('   Consecutive correct: ${userCard.consecutiveCorrect}');
+            if (userCard.nextReview != null) {
+              final minutes = userCard.nextReview!
+                  .difference(DateTime.now())
+                  .inMinutes;
+              print('   Next review in: $minutes min');
+            }
+          } else {
+            print('   Next review in: ${userCard.interval} day(s)');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ Error saving card review: $e');
+        }
       }
-    } catch (e) {
+    } else {
       if (kDebugMode) {
-        print('❌ Error saving card review: $e');
+        print('🏋️ Practice Mode - Not saving progress');
       }
     }
 
@@ -250,6 +366,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       // Start timer for next card
       _cardStartTimes[_currentCardIndex] =
           DateTime.now().millisecondsSinceEpoch;
+      _startCardTimer();
 
       // Re-focus input
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -263,11 +380,13 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
   }
 
   void _completeSession() async {
+    _stopCardTimer();
+
     final duration = DateTime.now().difference(_sessionStartTime);
     final userId = _authService.currentUser?.uid;
 
     // Save progress to Firestore
-    if (userId != null) {
+    if (userId != null && !_isPracticeMode) {
       try {
         await _progressService.saveStudySession(
           userId: userId,
@@ -277,6 +396,24 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
           incorrectAnswers: _incorrectCount,
           duration: duration,
         );
+
+        // Update daily goal
+        await _gamificationService.updateDailyGoalProgress(
+          userId: userId,
+          cardsStudied: _flashcards.length,
+        );
+
+        // Check for new badges
+        final stats = await _progressService.getUserStats(userId);
+        final averageTime = _cardTimes.isNotEmpty
+            ? _cardTimes.reduce((a, b) => a + b) ~/ _cardTimes.length
+            : null;
+
+        _newBadges = await _gamificationService.checkAndUnlockBadges(
+          userId: userId,
+          stats: stats,
+          sessionAverageTime: averageTime,
+        );
       } catch (e) {
         if (kDebugMode) {
           print('Error saving progress: $e');
@@ -284,22 +421,28 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       }
     }
 
-    if (!mounted) return; // Check if the widget is still in the tree
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => SessionCompleteScreen(
-          deck: widget.deck,
-          cardsStudied: _flashcards.length,
-          correctCount: _correctCount,
-          incorrectCount: _incorrectCount,
-          duration: duration,
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => SessionCompleteScreen(
+            deck: widget.deck,
+            cardsStudied: _flashcards.length,
+            correctCount: _correctCount,
+            incorrectCount: _incorrectCount,
+            duration: duration,
+            newBadges: _newBadges,
+            averageTimePerCard: _cardTimes.isNotEmpty
+                ? _cardTimes.reduce((a, b) => a + b) ~/ _cardTimes.length
+                : 0,
+            isPracticeMode: _isPracticeMode,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   void _exitSession() {
+    _stopCardTimer();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -322,6 +465,42 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     );
   }
 
+  void _startCardTimer() {
+    _cardTimer?.cancel();
+    _timeRemaining = _timeLimit;
+
+    if (!_isTimerEnabled) return;
+
+    _cardTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        if (_timeRemaining > 0) {
+          _timeRemaining--;
+        } else {
+          timer.cancel();
+          if (!_showAnswer) {
+            _handleTimeUp();
+          }
+        }
+      });
+    });
+  }
+
+  void _handleTimeUp() {
+    setState(() {
+      _userAnswer = '';
+    });
+    _flipCard();
+  }
+
+  void _stopCardTimer() {
+    _cardTimer?.cancel();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -332,27 +511,80 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('Study Session')),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.info_outline,
-                size: 64,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No flashcards available',
-                style: AppTextStyles.headingMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'This deck is empty',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  size: 80,
+                  color: AppColors.success,
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Text('All caught up!', style: AppTextStyles.headingLarge),
+                const SizedBox(height: 8),
+                Text(
+                  'No cards due right now',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+
+                // ===== NEW: Practice Mode Option =====
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.fitness_center,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Want more practice?',
+                        style: AppTextStyles.headingSmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Practice mode lets you study all cards without affecting your review schedule',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomButton(
+                        text: 'Start Practice Mode',
+                        onPressed: () => _startPracticeMode(),
+                        icon: Icons.play_circle_outline,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // =====================================
+                const SizedBox(height: 24),
+                CustomButton(
+                  text: 'Back to Home',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icons.home,
+                  type: ButtonType.text,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -367,23 +599,50 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
           icon: const Icon(Icons.close),
           onPressed: _exitSession,
         ),
-        title: Text(widget.deck.name),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.deck.name),
+            if (_isPracticeMode)
+              Text(
+                'Practice Mode',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+          ],
+        ),
         actions: [
-          // Timer placeholder
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: Row(
-                children: [
-                  const Icon(Icons.timer_outlined, size: 20),
-                  const SizedBox(width: 4),
-                  Text(
-                    '43s', // This is still a placeholder
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _getTimerColor(),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 18,
+                      color: AppColors.white,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_timeRemaining}s',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -395,7 +654,7 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
             // Progress bar
             _buildProgressBar(),
 
-            // ===== DEBUG PANEL ADDED =====
+            // DEBUG PANEL
             if (kDebugMode && _currentCardIndex < _flashcards.length) ...[
               Container(
                 margin: const EdgeInsets.all(16),
@@ -407,7 +666,6 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
                 child: _buildDebugInfo(),
               ),
             ],
-            // =============================
 
             // Progress text
             Padding(
@@ -496,7 +754,6 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     );
   }
 
-  // ===== NEW DEBUG WIDGET ADDED =====
   Widget _buildDebugInfo() {
     final currentCard = _flashcards[_currentCardIndex];
     final userCard = _userFlashcardMap[currentCard.id];
@@ -519,26 +776,54 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
         ),
         if (userCard != null) ...[
           Text(
-            'Ease Factor: ${userCard.easeFactor.toStringAsFixed(2)}',
-            style: TextStyle(color: Colors.white70, fontSize: 11),
+            'Status: ${userCard.status}',
+            style: TextStyle(
+              color: userCard.isLearning
+                  ? Colors.orangeAccent
+                  : Colors.greenAccent,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          Text(
-            'Interval: ${userCard.interval} days',
-            style: TextStyle(color: Colors.white70, fontSize: 11),
-          ),
-          Text(
-            'Repetitions: ${userCard.repetitions}',
-            style: TextStyle(color: Colors.white70, fontSize: 11),
-          ),
+          if (userCard.isLearning) ...[
+            Text(
+              'Learning Step: ${userCard.learningStep + 1}/${SpacedRepetitionConstants.learningSteps.length}',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+            Text(
+              'Consecutive Correct: ${userCard.consecutiveCorrect}/${SpacedRepetitionConstants.graduationThreshold}',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+          ] else ...[
+            Text(
+              'Ease Factor: ${userCard.easeFactor.toStringAsFixed(2)}',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+            Text(
+              'Interval: ${userCard.interval} days',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+            Text(
+              'Repetitions: ${userCard.repetitions}',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+          ],
           Text(
             'Accuracy: ${userCard.accuracy.toStringAsFixed(1)}%',
             style: TextStyle(color: Colors.white70, fontSize: 11),
           ),
-          if (userCard.nextReview != null)
+          if (userCard.nextReview != null) ...[
             Text(
               'Next: ${userCard.nextReview!.toLocal().toString().substring(0, 16)}',
               style: TextStyle(color: Colors.white70, fontSize: 11),
             ),
+            if (userCard.isLearning) ...[
+              Text(
+                'Due in: ${userCard.nextReview!.difference(DateTime.now()).inMinutes} min',
+                style: TextStyle(color: Colors.yellowAccent, fontSize: 11),
+              ),
+            ],
+          ],
         ] else
           Text(
             'Status: New Card',
@@ -548,5 +833,9 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
     );
   }
 
-  // ==================================
+  Color _getTimerColor() {
+    if (_timeRemaining <= 5) return AppColors.error;
+    if (_timeRemaining <= 10) return AppColors.warning;
+    return AppColors.success;
+  }
 }

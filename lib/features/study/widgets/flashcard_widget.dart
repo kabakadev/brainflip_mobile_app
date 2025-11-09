@@ -119,43 +119,23 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
 
           const SizedBox(height: 24),
 
-          // Image
-          //
-          // ===== FIX: REMOVED THE Expanded WIDGET =====
-          //
-          // Expanded( // <-- This was the problem
+          // Image - FIXED VERSION
           Center(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 32),
-              padding: const EdgeInsets.all(24),
+              height: 250, // Fixed height for consistency
               decoration: BoxDecoration(
                 color: AppColors.gray100,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.gray300),
               ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.image_outlined,
-                      size: 64,
-                      color: AppColors.gray400,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Image Placeholder',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.gray400,
-                      ),
-                    ),
-                  ],
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildImage(widget.flashcard.imageUrl),
               ),
             ),
           ),
 
-          // ), // <-- This was the closing parenthesis for Expanded
           const SizedBox(height: 24),
 
           // Hint (if available)
@@ -186,6 +166,61 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
             ),
 
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  // Add this new method to handle both network and asset images
+  Widget _buildImage(String imageUrl) {
+    // Check if it's a network URL
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildErrorPlaceholder('Failed to load image');
+        },
+      );
+    } else if (imageUrl.startsWith('assets/')) {
+      // Asset image
+      return Image.asset(
+        imageUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildErrorPlaceholder('Image not found');
+        },
+      );
+    } else {
+      // Fallback for placeholder URLs
+      return _buildErrorPlaceholder('No image available');
+    }
+  }
+
+  // Helper method for error/placeholder display
+  Widget _buildErrorPlaceholder(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.image_outlined, size: 64, color: AppColors.gray400),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.gray400),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

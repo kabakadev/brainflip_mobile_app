@@ -6,11 +6,16 @@ class UserFlashcard {
 
   // Spaced repetition fields
   final double easeFactor;
-  final int interval; // Days until next review
+  final int interval; // Days until next review (for graduated cards)
   final int repetitions;
   final DateTime? lastReviewed;
   final DateTime? nextReview;
-  final int quality; // Last quality rating (0-5)
+  final int quality; // Last quality rating (0-3)
+
+  // Learning phase tracking (NEW!)
+  final bool isLearning; // true = in learning phase, false = graduated
+  final int learningStep; // Current step in learning sequence
+  final int consecutiveCorrect; // Correct answers in current learning session
 
   // Stats
   final int timesReviewed;
@@ -28,6 +33,9 @@ class UserFlashcard {
     this.lastReviewed,
     this.nextReview,
     this.quality = 0,
+    this.isLearning = true, // NEW: Start in learning phase
+    this.learningStep = 0,
+    this.consecutiveCorrect = 0,
     this.timesReviewed = 0,
     this.timesCorrect = 0,
     this.timesIncorrect = 0,
@@ -49,6 +57,9 @@ class UserFlashcard {
           ? DateTime.parse(map['nextReview'])
           : null,
       quality: map['quality'] ?? 0,
+      isLearning: map['isLearning'] ?? true,
+      learningStep: map['learningStep'] ?? 0,
+      consecutiveCorrect: map['consecutiveCorrect'] ?? 0,
       timesReviewed: map['timesReviewed'] ?? 0,
       timesCorrect: map['timesCorrect'] ?? 0,
       timesIncorrect: map['timesIncorrect'] ?? 0,
@@ -66,6 +77,9 @@ class UserFlashcard {
       'lastReviewed': lastReviewed?.toIso8601String(),
       'nextReview': nextReview?.toIso8601String(),
       'quality': quality,
+      'isLearning': isLearning,
+      'learningStep': learningStep,
+      'consecutiveCorrect': consecutiveCorrect,
       'timesReviewed': timesReviewed,
       'timesCorrect': timesCorrect,
       'timesIncorrect': timesIncorrect,
@@ -83,6 +97,9 @@ class UserFlashcard {
     DateTime? lastReviewed,
     DateTime? nextReview,
     int? quality,
+    bool? isLearning,
+    int? learningStep,
+    int? consecutiveCorrect,
     int? timesReviewed,
     int? timesCorrect,
     int? timesIncorrect,
@@ -98,6 +115,9 @@ class UserFlashcard {
       lastReviewed: lastReviewed ?? this.lastReviewed,
       nextReview: nextReview ?? this.nextReview,
       quality: quality ?? this.quality,
+      isLearning: isLearning ?? this.isLearning,
+      learningStep: learningStep ?? this.learningStep,
+      consecutiveCorrect: consecutiveCorrect ?? this.consecutiveCorrect,
       timesReviewed: timesReviewed ?? this.timesReviewed,
       timesCorrect: timesCorrect ?? this.timesCorrect,
       timesIncorrect: timesIncorrect ?? this.timesIncorrect,
@@ -106,7 +126,7 @@ class UserFlashcard {
 
   /// Check if card is due for review
   bool get isDue {
-    if (nextReview == null) return true; // New card
+    if (nextReview == null) return true; // New card or in learning
     return DateTime.now().isAfter(nextReview!);
   }
 
@@ -114,5 +134,17 @@ class UserFlashcard {
   double get accuracy {
     if (timesReviewed == 0) return 0.0;
     return (timesCorrect / timesReviewed * 100);
+  }
+
+  /// Check if card is new (never reviewed)
+  bool get isNew {
+    return lastReviewed == null;
+  }
+
+  /// Get user-friendly status
+  String get status {
+    if (isNew) return 'New';
+    if (isLearning) return 'Learning';
+    return 'Review';
   }
 }
