@@ -168,7 +168,7 @@ If you find BrainFlip helpful, please ⭐ star this repository!
 ---
 
 <div align="center">
-  Made with ❤️ by [Your Name]
+  Made with ❤️ by Ian Kabaka
   
   **Study Smarter. Remember Longer. 🧠**
 </div>
