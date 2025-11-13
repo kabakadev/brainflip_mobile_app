@@ -7,7 +7,7 @@ import 'package:brainflip/services/settings_service.dart';
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
-  await SettingsService.init(); // <-- Add this line
+  await SettingsService.init();
 
   // Initialize Firebase
   await FirebaseService.initialize();
