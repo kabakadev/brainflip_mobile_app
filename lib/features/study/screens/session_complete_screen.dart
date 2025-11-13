@@ -123,16 +123,12 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
 
   @override
   Widget build(BuildContext context) {
-    // ===== FIX: The Scaffold should be the outer-most widget =====
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        // ===== WRAPPER WIDGET MOVED HERE =====
-        // This way, it only wraps the content, not the whole screen structure.
         child: CelebrationOverlay(
           show: widget.newBadges.isNotEmpty || _accuracyPercentage >= 90,
           child: SingleChildScrollView(
-            // =================================
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -140,7 +136,12 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
                   // Header
                   _buildHeader(),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+
+                  // ===== Practice Mode banner (NEW) =====
+                  if (widget.isPracticeMode) _buildPracticeBanner(),
+
+                  const SizedBox(height: 16),
 
                   // Circular progress indicator
                   _buildCircularProgress(),
@@ -236,6 +237,32 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildPracticeBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.secondary),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.fitness_center, color: AppColors.secondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Practice session complete! Your spaced repetition schedule was not affected.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.secondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -527,7 +554,7 @@ class _SessionCompleteScreenState extends State<SessionCompleteScreen>
               (route) => false,
             );
           },
-          type: ButtonType.text, // This uses our fixed CustomButton
+          type: ButtonType.text,
         ),
       ],
     );

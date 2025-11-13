@@ -14,11 +14,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _timerEnabled = true;
   int _timerDuration = 30; // seconds
   int _dailyGoalCards = 20;
+  int _cardsPerSession = 5; // NEW
 
   @override
   void initState() {
     super.initState();
-    _loadSettings(); // <-- Load saved settings when the screen opens
+    _loadSettings();
   }
 
   void _loadSettings() {
@@ -26,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _timerEnabled = SettingsService.isTimerEnabled();
       _timerDuration = SettingsService.getTimerDuration();
       _dailyGoalCards = SettingsService.getDailyGoalTarget();
+      _cardsPerSession = SettingsService.getCardsPerSession(); // NEW
     });
   }
 
@@ -47,12 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Switch(
               value: _timerEnabled,
               onChanged: (value) async {
-                // <-- Make onChanged 'async'
-                await SettingsService.setTimerEnabled(
-                  value,
-                ); // <-- Save the setting
+                await SettingsService.setTimerEnabled(value);
                 setState(() {
-                  // <-- Update the local UI
                   _timerEnabled = value;
                 });
               },
@@ -78,13 +76,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   });
                 },
                 onChangeEnd: (value) async {
-                  // <-- Save when user stops sliding
                   await SettingsService.setTimerDuration(value.toInt());
                 },
                 activeColor: AppColors.primary,
               ),
             ),
 
+          const SizedBox(height: 12),
+
+          // ===== NEW: Cards Per Session Setting =====
+          _buildSettingCard(
+            title: 'Cards Per Session',
+            subtitle: '$_cardsPerSession cards per study session',
+            child: Slider(
+              value: _cardsPerSession.toDouble(),
+              min: 5,
+              max: 50,
+              divisions: 9, // 5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+              label: '$_cardsPerSession cards',
+              onChanged: (value) {
+                setState(() {
+                  _cardsPerSession = value.toInt();
+                });
+              },
+              onChangeEnd: (value) async {
+                await SettingsService.setCardsPerSession(value.toInt());
+              },
+              activeColor: AppColors.primary,
+            ),
+          ),
+
+          // ==========================================
           const SizedBox(height: 32),
 
           // Goals Section
@@ -106,7 +128,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
               onChangeEnd: (value) async {
-                // <-- Save when user stops sliding
                 await SettingsService.setDailyGoalTarget(value.toInt());
               },
               activeColor: AppColors.primary,

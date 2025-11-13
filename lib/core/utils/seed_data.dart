@@ -364,7 +364,7 @@ class SeedData {
       FlashcardModel(
         id: '',
         deckId: 'physics_formulas',
-        imageUrl: 'assets/images/flashcards/physics_formulas/f_equals_ma',
+        imageUrl: 'assets/images/flashcards/physics_formulas/f_equals_ma.webp',
         correctAnswer: 'f=ma',
         alternateAnswers: [
           'force = mass * acceleration',

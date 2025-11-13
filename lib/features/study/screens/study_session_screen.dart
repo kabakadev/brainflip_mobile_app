@@ -109,9 +109,8 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       allFlashcards.shuffle();
 
       // Limit to prevent overwhelm
-      final practiceCards = allFlashcards
-          .take(SpacedRepetitionConstants.maxCardsPerSession)
-          .toList();
+      final sessionLimit = SettingsService.getCardsPerSession();
+      final practiceCards = allFlashcards.take(sessionLimit).toList();
 
       setState(() {
         _flashcards = practiceCards;
@@ -200,9 +199,8 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
       sortedFlashcards.addAll(studyQueue.newCards);
 
       // Limit total cards per session
-      final finalSessionList = sortedFlashcards
-          .take(SpacedRepetitionConstants.maxCardsPerSession)
-          .toList();
+      final sessionLimit = SettingsService.getCardsPerSession();
+      final finalSessionList = sortedFlashcards.take(sessionLimit).toList();
 
       setState(() {
         _flashcards = finalSessionList;
@@ -655,17 +653,17 @@ class _StudySessionScreenState extends State<StudySessionScreen> {
             _buildProgressBar(),
 
             // DEBUG PANEL
-            if (kDebugMode && _currentCardIndex < _flashcards.length) ...[
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _buildDebugInfo(),
-              ),
-            ],
+            // if (kDebugMode && _currentCardIndex < _flashcards.length) ...[
+            //   Container(
+            //     margin: const EdgeInsets.all(16),
+            //     padding: const EdgeInsets.all(12),
+            //     decoration: BoxDecoration(
+            //       color: Colors.black.withOpacity(0.8),
+            //       borderRadius: BorderRadius.circular(8),
+            //     ),
+            //     child: _buildDebugInfo(),
+            //   ),
+            // ],
 
             // Progress text
             Padding(

@@ -216,23 +216,28 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 style: AppTextStyles.bodyMedium,
               ),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final starValue = index + 1.0;
-                  return IconButton(
-                    icon: Icon(
-                      starValue <= _userRating ? Icons.star : Icons.star_border,
-                      color: AppColors.warning,
-                      size: 40,
-                    ),
-                    onPressed: () {
-                      setDialogState(() {
-                        _userRating = starValue;
-                      });
-                    },
-                  );
-                }),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    final starValue = index + 1.0;
+                    return IconButton(
+                      icon: Icon(
+                        starValue <= _userRating
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: AppColors.warning,
+                        size: 40,
+                      ),
+                      onPressed: () {
+                        setDialogState(() {
+                          _userRating = starValue;
+                        });
+                      },
+                    );
+                  }),
+                ),
               ),
             ],
           ),

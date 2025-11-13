@@ -8,6 +8,7 @@ class SettingsService {
   static const String _kTimerEnabled = 'timerEnabled';
   static const String _kTimerDuration = 'timerDuration';
   static const String _kDailyGoal = 'dailyGoal';
+  static const String _kCardsPerSession = 'cardsPerSession';
 
   // --- Call this in main.dart ---
   static Future<void> init() async {
@@ -42,5 +43,15 @@ class SettingsService {
 
   static Future<void> setDailyGoalTarget(int cards) async {
     await _prefs?.setInt(_kDailyGoal, cards);
+  }
+
+  // --- Cards Per Session ---
+  static int getCardsPerSession() {
+    // Return saved value, or 5 cards as default
+    return _prefs?.getInt(_kCardsPerSession) ?? 5;
+  }
+
+  static Future<void> setCardsPerSession(int cards) async {
+    await _prefs?.setInt(_kCardsPerSession, cards);
   }
 }

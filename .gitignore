@@ -45,3 +45,11 @@ app.*.map.json
 /android/app/release
 
 android/app/google-services.json
+# Keystore files
+*.jks
+*.keystore
+android/key.properties
+
+# Built APKs / AABs (we'll attach these to GitHub Releases, not commit them)
+*.apk
+*.aab

@@ -35,8 +35,15 @@ class DeckService {
 
       final docRef = await _firestore.collection('decks').add(deck.toMap());
 
+      // ===== FIX: Add deck to user's collection =====
+      await _firestore.collection('users').doc(userId).set({
+        'selectedDecks': FieldValue.arrayUnion([docRef.id]),
+      }, SetOptions(merge: true));
+      // ==============================================
+
       if (kDebugMode) {
         print('✅ Custom deck created: $name');
+        print('✅ Deck added to user collection');
       }
 
       return docRef.id;
@@ -343,9 +350,9 @@ class DeckService {
   }) async {
     try {
       // Add deck ID to user's selected decks
-      await _firestore.collection('users').doc(userId).update({
+      await _firestore.collection('users').doc(userId).set({
         'selectedDecks': FieldValue.arrayUnion([deckId]),
-      });
+      }, SetOptions(merge: true));
 
       // Increment downloads
       await incrementDownloads(deckId);
